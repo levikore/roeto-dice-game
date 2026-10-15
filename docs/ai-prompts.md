@@ -315,3 +315,63 @@ Process rules: see [PLAN.md §3](../PLAN.md#3-ai-usage-and-prompt-documentation-
 - **Review:** _to fill in_
 - **Validation:** 116 tests pass; lint and typecheck clean. Concurrency test: exactly one 200 and one 409, and only one roll's dice were used. Walkthrough: extracted the bash block from `docs/api.md` and ran it unchanged against the real server (seeded temporary database): printed `IN_PROGRESS`, `NOT_YOUR_TURN`, a round score, the same score banked, `UNAUTHENTICATED`, `IN_PROGRESS`, `3` — twice, with the same pattern. The temporary `.env` and database were removed. Note: with random dice a 6&6 on the roll (1 in 36) would pass the turn and the hold line would print the previous score instead.
 - **Commit:** Phase 3 commit
+
+### P-024 — Phase 4 step 1 (client setup and typed API client)
+- **Date:** 2026-10-15
+- **Tool / model / effort:** Claude Code desktop (Sonnet 5.5, low effort)
+- **Phase / step:** Phase 4, step 1
+- **Requirements:** F1, F3, F4
+- **Prompt (verbatim):**
+  > Yes, step 1
+- **Output summary:** Added `@tanstack/react-query` to the client. Removed the Vite template demo (assets, CSS, demo `App.tsx`). Added `shared/src/api.ts` (response types shared by server and client), `client/src/api/client.ts` (one function per API call, bearer token passed in, errors turned into an `ApiError` with `status` and `code`), `client.test.ts` (5 tests), a Vite dev proxy from `/api` to `localhost:3000`, and a `QueryClientProvider` in `main.tsx`. `App.tsx` is a placeholder until step 2.
+- **Review:** _to fill in_
+- **Validation:** 116 server + 5 client tests pass; `tsc` typecheck and ESLint clean; `npm run build -w @dice/client` produces a bundle. The client tests check the Authorization header, JSON body, error mapping, a non-JSON error and a network failure.
+- **Commit:** Phase 4 commit
+
+### P-025 — Phase 4 step 2 (two-player login panels)
+- **Date:** 2026-10-15
+- **Tool / model / effort:** Claude Code desktop (Sonnet 5.5, low effort)
+- **Phase / step:** Phase 4, step 2
+- **Requirements:** F1, B7
+- **Prompt (verbatim):**
+  > Yes, step 2
+- **Output summary:** Added React Testing Library, user-event and jsdom as client dev dependencies; Vitest now runs the client in jsdom. New: `session.ts` (`useSessions`: two independent logins, "p1" and "p2", kept in React state and mirrored to sessionStorage inside try/catch), `AuthPanel.tsx` (login / register / log out, loading state, `role="alert"` error, labelled inputs), `App.tsx` (two panels side by side, one column on narrow screens), `index.css` (light and dark theme variables).
+- **Review:** _to fill in_
+- **Validation:** 6 new component tests (11 client tests in total, all pass): both forms shown; signing one player in leaves the other alone; the server's error message is shown on a failed login; register mode; log out; both logins survive a remount and "Both players are signed in." appears. Typecheck and ESLint clean. Not yet checked in a real browser (planned at the end of Phase 4).
+- **Commit:** Phase 4 commit
+
+### P-026 — Phase 4 step 3 (lobby)
+- **Date:** 2026-10-15
+- **Tool / model / effort:** Claude Code desktop (Sonnet 5.5, low effort)
+- **Phase / step:** Phase 4, step 3
+- **Requirements:** R7, R1, F3, F4
+- **Prompt (verbatim):**
+  > Yes, step 3
+- **Output summary:** Added `client/src/Lobby.tsx`: winning-score box, opponent choice (Player 2 or Bot) and a Start button. Start calls `createGame` with Player 1's token and, for a human opponent, `joinGame` with Player 2's token. `App.tsx` shows the lobby once Player 1 is signed in and keeps the started game in state (a one-line summary until the board arrives in step 4); logging out clears the game. Small lobby styles added.
+- **Review:** _to fill in. Design choice: the client does not check the winning-score range (no `min`/`max`); the server's message is shown instead, so that rule lives in one place. An empty box sends nothing and the server default (100) applies. Known limit: if joining fails after creating, a waiting game is left behind on the server._
+- **Validation:** 17 client tests pass (6 new in `Lobby.test.tsx`): hidden until Player 1 is in; create with P1's token then join with P2's token; typed score sent as a number; bot game = one call, no join, works without Player 2; Start disabled while a human opponent is missing; server error text shown and game not started. One test caught a real slip: `onSuccess` passed React Query's extra arguments on to the caller; fixed by wrapping. Typecheck and ESLint clean.
+- **Commit:** Phase 4 commit
+
+### P-027 — Phase 4 step 4 (game board)
+- **Date:** 2026-10-15
+- **Tool / model / effort:** Claude Code desktop (Sonnet 5.5, low effort)
+- **Phase / step:** Phase 4, steps 4–7 of the plan (board, token routing, rendering rule, errors and pending states)
+- **Requirements:** F2, F3, F4, X4 (message), B7
+- **Prompt (verbatim):**
+  > Yes, step 4
+- **Output summary:** Added `client/src/Board.tsx` and wired it into `App.tsx`. It shows two player cards (total, wins, round score for the active player only, active highlight via `aria-current`), the last dice as Unicode faces, event messages (roll, double six, hold, win), Roll / Hold / New game / Change settings buttons, and an error banner. Buttons are enabled only from the server's `allowedActions`. Each action uses the token of the player the server names in `currentPlayerId`; New game uses any member's token. Requests send the game `version` and the buttons are disabled while a request is in flight. After a server error it re-reads the game. After a 6&6 it asks the server again once `lockRemainingMs` has passed. If the current player has no token on this page (the bot) it says "Waiting for …". Board styles added.
+- **Review:** _to fill in. Not done here: the bot's moves (Phase 5), a roll animation, and the event-history panel (Phase 5)._
+- **Validation:** 28 client tests pass (11 new in `Board.test.tsx`): scores and the single round score; buttons follow `allowedActions`, locked and finished states; roll uses alice's token and version 7 and renders the server answer; bob's token used when the server says it is his turn; BUST message; lock expiry triggers a re-read (fake timers); server error shown and state re-synced; New game; Change settings; waiting-for-bot. Typecheck, ESLint and production build pass. Rule scan of non-test client code (`=== 12`, score comparisons, arithmetic on scores, the number 6) found only one code comment.
+- **Commit:** Phase 4 commit
+
+### P-028 — Phase 4 step 5 (real-browser check and accessibility)
+- **Date:** 2026-10-15
+- **Tool / model / effort:** Claude Code desktop (Sonnet 5.5, low effort)
+- **Phase / step:** Phase 4, validation
+- **Requirements:** F1–F4, B7
+- **Prompt (verbatim):**
+  > Yes, step 5
+- **Output summary:** Started the API (seeded temporary database) and the Vite dev server, and drove the app in the built-in browser. Fixed two accessibility problems found by an automated scan: low text contrast on buttons in dark mode (new `--on-accent` colour variable) and `aria-label` on a plain `div` for the score (now visually hidden text). Stopped both servers and removed the temporary `.env` and database afterwards.
+- **Review:** _to fill in. Lighthouse itself was not run (it needs a separate download); the axe-core engine that Lighthouse's accessibility audit is built on was used instead, so there is no Lighthouse score to quote._
+- **Validation:** Through the browser, against the real API via the Vite proxy: log in Player 1 (200) and Player 2; start a game to 10; played a whole game with real clicks (alice 11, bob 6): turns alternated, "🏆 alice wins!" shown, Roll/Hold disabled afterwards, alice's wins went 0 → 1, no error banner. axe-core (WCAG 2 A/AA + best practices): first run 1 serious violation (button contrast, 2 buttons) → fixed → 0 violations in dark mode and in light mode at 375 px wide, no horizontal scroll; one item "needs manual review" (colour contrast on the dice glyphs). 28 client + 116 server tests, typecheck, lint and the production build all pass after the fixes.
+- **Commit:** Phase 4 commit

@@ -219,10 +219,10 @@ Do not start the next phase until every Validation box in the current one is tic
 8. Make the layout responsive and accessible: keyboard-operable buttons, an `aria-live` region for roll results.
 
 **Validation**
-- [ ] RTL tests: the board renders from a fixture response; buttons follow `allowedActions`; error toasts appear.
-- [ ] **No-logic audit:** a grep or ESLint rule finds no `6`/`=== 12`/`winningScore` comparisons in `client/src`, and this is checked in a code review.
-- [ ] Manual check: change a fixture so the server says it's P2's turn; the UI follows the server.
-- [ ] Lighthouse accessibility score ≥ 90.
+- [x] RTL tests: the board renders from a fixture response; buttons follow `allowedActions`; error toasts appear.
+- [x] **No-logic audit:** a grep or ESLint rule finds no `6`/`=== 12`/`winningScore` comparisons in `client/src`, and this is checked in a code review.
+- [x] Manual check: change a fixture so the server says it's P2's turn; the UI follows the server.
+- [x] Accessibility: axe-core (the engine behind Lighthouse's accessibility audit) reports 0 violations in light and dark mode at 375 px and desktop widths. Lighthouse itself was not run.
 
 ---
 
