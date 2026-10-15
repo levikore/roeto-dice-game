@@ -145,7 +145,7 @@ describe('Board actions', () => {
     show(mk());
     await userEvent.click(btn('Roll'));
     expect((await screen.findByRole('alert')).textContent).toBe(
-      'The game changed; reload and try again',
+      'The game had changed, so your screen was updated. Try again.',
     );
     expect(await screen.findByText('Round: 12')).toBeTruthy();
   });
@@ -246,5 +246,37 @@ describe('Board replay of several moves (the bot answered)', () => {
     expect(await screen.findByRole('list', { name: 'History' })).toBeTruthy();
     await userEvent.click(btn('New game'));
     await waitFor(() => expect(screen.queryByRole('list', { name: 'History' })).toBeNull());
+  });
+});
+
+describe('Board double clicks', () => {
+  it('sends only one request when Roll is clicked twice in the same instant', async () => {
+    let finish!: (v: Awaited<ReturnType<typeof api.roll>>) => void;
+    vi.mocked(api.roll).mockReturnValue(new Promise((r) => (finish = r)));
+    show(mk());
+    await rtlAct(async () => {
+      btn('Roll').click();
+      btn('Roll').click();
+    });
+    expect(api.roll).toHaveBeenCalledTimes(1);
+    await rtlAct(async () => finish({ game: mk({ version: 8, roundScore: 12 }), events: [] }));
+    expect(await screen.findByText('Round: 12')).toBeTruthy();
+    expect(screen.queryByText(/changed/)).toBeNull();
+  });
+
+  it('allows the next click once the first request has finished, even after an error', async () => {
+    vi.mocked(api.roll).mockRejectedValueOnce(
+      new ApiError(0, 'NETWORK_ERROR', 'Cannot reach the server'),
+    );
+    vi.mocked(api.roll).mockResolvedValueOnce({
+      game: mk({ version: 8, roundScore: 14 }),
+      events: [],
+    });
+    show(mk());
+    await userEvent.click(btn('Roll'));
+    expect((await screen.findByRole('alert')).textContent).toBe('Cannot reach the server');
+    await userEvent.click(btn('Roll'));
+    expect(await screen.findByText('Round: 14')).toBeTruthy();
+    expect(api.roll).toHaveBeenCalledTimes(2);
   });
 });

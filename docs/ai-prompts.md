@@ -423,3 +423,39 @@ Process rules: see [PLAN.md §3](../PLAN.md#3-ai-usage-and-prompt-documentation-
 - **Review:** _to fill in_
 - **Validation:** 34 client tests pass (3 new): rows and order from the server, token used, bot marked; refetch when the game's winner changes; error message shown. Typecheck, lint and build clean. Not re-checked in the browser (small, standard table; the axe scan from Phase 4 has not been repeated for it).
 - **Commit:** Phase 5 commit
+
+### P-033 — Phase 6 step 1 (Playwright smoke test)
+- **Date:** 2026-10-15
+- **Tool / model / effort:** Claude Code desktop (Sonnet 5.5, low effort)
+- **Phase / step:** Phase 6, step 1
+- **Requirements:** R1–R6, B7, F1–F3, X1
+- **Prompt (verbatim):**
+  > Yes, step 1
+- **Output summary:** Added `@playwright/test` (the package only; **no browser was downloaded**, the test uses the Chrome already installed via `channel: 'chrome'`). Added `playwright.config.ts` (starts the API with a throwaway database, seeded users and seeded dice, plus the Vite client) and `e2e/smoke.spec.ts`; `npm run e2e` runs it. To make runs repeatable the API accepts `DICE_SEED` (prints "TEST MODE" and uses `seededDice`); `seededDice` lives in `server/src/game/dice.ts` with 3 new tests, and `play-game.ts` now reuses it.
+- **Review:** _to fill in. First version hung for 60 s: it clicked Hold after the server had already disabled it, and Playwright waits for the button to become enabled. Fixed by trying each click with a short timeout and looping. Not added to CI yet: GitHub's Ubuntu runners have Chrome, but I cannot verify that from here without a remote._
+- **Validation:** `npm run e2e` passes (2.6 s) on two consecutive runs: log in alice and bob, start a game to 10, play with real clicks until "alice wins!", Roll and Hold disabled, leaderboard shows exactly one player with 1 win. 134 server and 34 client tests, lint and the type check of the e2e files pass. No `.env` or database file is left behind (`*.db` is git-ignored).
+- **Commit:** Phase 6 commit
+
+### P-034 — Phase 6 step 2 (security pass)
+- **Date:** 2026-10-15
+- **Tool / model / effort:** Claude Code desktop (Sonnet 5.5, low effort)
+- **Phase / step:** Phase 6, step 2
+- **Requirements:** B1, B5, B6
+- **Prompt (verbatim):**
+  > Yes, step 2
+- **Output summary:** Ran the checks below and fixed what they found. New `server/src/config.ts` (`loadConfig`): the API now refuses to start if `JWT_SECRET` is missing, shorter than 16 characters or still the public example value from `.env.example`, and checks `PORT` and `DICE_SEED`. Unknown `/api/...` paths now return the standard JSON error (404 `NOT_FOUND`) instead of an HTML page. New `config.test.ts` (12 tests) and `security.test.ts` (9 tamper and error tests).
+- **Review:** _to fill in. Real finding: copying `.env.example` unchanged gave a 33-character "valid" secret that is public, so anyone could have forged login tokens; now refused. Known limits, to go in the README: tokens are stateless (a stolen token works until it expires after 24 h; there is no logout on the server), the API is plain HTTP for local use, and the rate limit covers login and register only._
+- **Validation:** `npm audit` (all dependencies): 0 vulnerabilities. Secret scan of the whole git history (added lines): only the placeholder in `.env.example`; `.env` and `*.db` never committed (0 commits touch them). Route review: every route except register/login is behind `requireAuth`, and every body and id is validated. Tamper tests pass: SQL-injection strings in login, register and game ids; extra body fields cannot set dice, scores, status, ids, wins or bot flag; `__proto__` payload harmless; the identity always comes from the token; forced server fault returns a generic 500 with no internals. Live server: unchanged `.env.example` refused to start; helmet headers present; an `Origin: http://evil.test` preflight is answered only with the allowed origin; after 30 bad logins the 31st gets 429. 153 server tests, 34 client tests and the e2e test pass.
+- **Commit:** Phase 6 commit
+
+### P-035 — Phase 6 step 3 (error UX and exploratory session)
+- **Date:** 2026-10-15
+- **Tool / model / effort:** Claude Code desktop (Sonnet 5.5, low effort)
+- **Phase / step:** Phase 6, steps 3 and the manual exploratory check
+- **Requirements:** F3, B5, B6
+- **Prompt (verbatim):**
+  > Yes, step 3
+- **Output summary:** Drove the real app in the browser (API and Vite running, temporary seeded database), found four UX problems and fixed each with a test. (1) A stored login the server rejects (expired, or the server was reset) kept showing "Signed in" with "Please log in" errors; now the API client tells the app, that player is signed out and a notice says "alice's login expired. Please sign in again." (2) With the API stopped, the Vite proxy's 502 page produced the vague "Request failed"; now "The server is not responding. Please try again in a moment." (3) A double click on Roll sent two requests and showed a scary "game changed" error (the server correctly applied only one); the board now ignores a second click while one is in flight. (4) A stale screen (another tab moved the game) showed "reload and try again" after the screen had already refreshed; the message now says the screen was updated. Also added a "Try again" button to the leaderboard error state.
+- **Review:** _to fill in_
+- **Validation:** Live in the browser: stopped the API mid-game → clear message, buttons stay usable, restarted the API → the next Roll worked and the game continued from the saved state. Double click (before the fix): exactly one roll applied, second rejected by the server; after the fix: one request, no error. Stale screen: another "tab" rolled via the API, then Roll in the old screen → rejected with STALE_VERSION and the screen showed the new round. Bob's token rolling on alice's turn → `NOT_YOUR_TURN`. Verified the double-click test fails when the guard is removed. 153 server and 41 client tests and the e2e test pass; typecheck and lint clean. Servers stopped and temporary `.env`/databases removed.
+- **Commit:** Phase 6 commit

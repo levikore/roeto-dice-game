@@ -21,6 +21,17 @@ export class ApiError extends Error {
   }
 }
 
+let unauthorizedHandler: ((token: string) => void) | null = null;
+
+/** The app registers one handler: it is told when a stored token is no longer accepted. */
+export function setUnauthorizedHandler(fn: ((token: string) => void) | null) {
+  unauthorizedHandler = fn;
+}
+
+export function notifyUnauthorized(token: string) {
+  unauthorizedHandler?.(token);
+}
+
 async function request<T>(
   method: 'GET' | 'POST',
   path: string,
@@ -44,6 +55,18 @@ async function request<T>(
   const data: unknown = await res.json().catch(() => null);
   if (!res.ok) {
     const err = (data as ApiErrorBody | null)?.error;
+    // A token the server no longer accepts (expired, or the server was reset) means "sign in again".
+    if (res.status === 401 && err?.code === 'UNAUTHENTICATED' && opts.token) {
+      notifyUnauthorized(opts.token);
+    }
+    if (!err && res.status >= 500) {
+      // A proxy answered instead of the API (e.g. 502 while the API is down): not our JSON error shape.
+      throw new ApiError(
+        res.status,
+        'SERVER_UNAVAILABLE',
+        'The server is not responding. Please try again in a moment.',
+      );
+    }
     throw new ApiError(res.status, err?.code ?? 'UNKNOWN', err?.message ?? 'Request failed');
   }
   return data as T;

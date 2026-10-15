@@ -41,5 +41,16 @@ export function useSessions() {
     })
   }, [])
 
-  return { sessions, setSession: set }
+  /** Signs out whichever player holds this token. */
+  const dropToken = useCallback((token: string) => {
+    setSessions((prev) => {
+      const slot = (['p1', 'p2'] as const).find((s) => prev[s]?.token === token)
+      if (!slot) return prev
+      const next = { ...prev, [slot]: null }
+      save(next)
+      return next
+    })
+  }, [])
+
+  return { sessions, setSession: set, dropToken }
 }

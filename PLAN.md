@@ -246,13 +246,13 @@ Do not start the next phase until every Validation box in the current one is tic
 **Steps**
 1. Write **one** Playwright smoke test (decided 2026-10-15 to save usage): log in both players → play to a low winning score (10) → the winner is shown and wins go up by 1. New-game and bot flows are covered by API tests instead.
    The tests use a `DICE_SEED` / test-mode env so the dice are predictable.
-2. Run a security pass: check JWT secret handling, input validation on every route, no secrets in git (`gitleaks`), and `npm audit`.
-3. Do an error UX pass: kill the server mid-game and confirm the UI shows a clear error.
+2. ✅ Run a security pass: check JWT secret handling, input validation on every route, no secrets in git (history scanned with grep; `gitleaks` is not installed), and `npm audit`.
+3. ✅ Do an error UX pass: kill the server mid-game and confirm the UI shows a clear error.
 
 **Validation**
-- [ ] All E2E tests are green locally and in CI.
-- [ ] `npm audit --omit=dev` shows no high or critical issues.
-- [ ] Manual exploratory session: try to break the rules (double clicks, two tabs, editing a request in DevTools to send the other player's token) and confirm the server rejects each attempt.
+- [x] The E2E smoke test is green locally (`npm run e2e`). _Not in CI: the repo has no remote yet._
+- [x] `npm audit` shows 0 vulnerabilities.
+- [x] Manual exploratory session: try to break the rules (double clicks, two tabs, editing a request in DevTools to send the other player's token) and confirm the server rejects each attempt.
 
 ---
 

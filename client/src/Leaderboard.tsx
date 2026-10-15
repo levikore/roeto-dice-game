@@ -8,7 +8,7 @@ interface Props {
 }
 
 export default function Leaderboard({ token, refreshKey }: Props) {
-  const { data, error } = useQuery({
+  const { data, error, refetch, isFetching } = useQuery({
     queryKey: ['leaderboard', token, refreshKey],
     queryFn: () => api.leaderboard(token),
   });
@@ -17,9 +17,19 @@ export default function Leaderboard({ token, refreshKey }: Props) {
     <section className="panel leaderboard" aria-label="Leaderboard">
       <h2>Leaderboard</h2>
       {error && (
-        <p role="alert" className="error">
-          {error.message}
-        </p>
+        <>
+          <p role="alert" className="error">
+            {error.message}
+          </p>
+          <button
+            type="button"
+            className="secondary"
+            disabled={isFetching}
+            onClick={() => void refetch()}
+          >
+            Try again
+          </button>
+        </>
       )}
       {data && (
         <table>

@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ApiError, api } from './api/client.ts';
 import Leaderboard from './Leaderboard.tsx';
@@ -49,5 +50,19 @@ describe('Leaderboard', () => {
     );
     render(show(null));
     expect((await screen.findByRole('alert')).textContent).toBe('Cannot reach the server');
+  });
+
+  it('offers Try again after a failure and shows the table once the server is back', async () => {
+    vi.mocked(api.leaderboard)
+      .mockRejectedValueOnce(
+        new ApiError(502, 'SERVER_UNAVAILABLE', 'The server is not responding.'),
+      )
+      .mockResolvedValueOnce({
+        leaderboard: [{ userId: '1', username: 'alice', wins: 1, isBot: false }],
+      });
+    render(show(null));
+    await userEvent.click(await screen.findByRole('button', { name: 'Try again' }));
+    expect(await screen.findByRole('table')).toBeTruthy();
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 });

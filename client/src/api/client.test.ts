@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ApiError, api } from './client.ts';
+import { ApiError, api, setUnauthorizedHandler } from './client.ts';
 
 const reply = (status: number, body: unknown) =>
   vi.fn().mockResolvedValue(new Response(JSON.stringify(body), { status }));
@@ -39,15 +39,50 @@ describe('api client', () => {
     });
   });
 
-  it('handles a non-JSON error response', async () => {
+  it('explains a proxy error page (API down) in plain words', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('<html>', { status: 502 })));
     const err = await api.getGame('t', 'g').catch((e) => e);
-    expect(err).toMatchObject({ status: 502, code: 'UNKNOWN' });
+    expect(err).toMatchObject({ status: 502, code: 'SERVER_UNAVAILABLE' });
+    expect(err.message).toMatch(/not responding/);
+  });
+
+  it('keeps a generic message for a non-JSON client error', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('nope', { status: 404 })));
+    const err = await api.getGame('t', 'g').catch((e) => e);
+    expect(err).toMatchObject({ status: 404, code: 'UNKNOWN', message: 'Request failed' });
   });
 
   it('reports a network failure as NETWORK_ERROR', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('failed')));
     const err = await api.leaderboard('t').catch((e) => e);
     expect(err).toMatchObject({ status: 0, code: 'NETWORK_ERROR' });
+  });
+});
+
+describe('expired logins', () => {
+  it('tells the app when a stored token is rejected as UNAUTHENTICATED', async () => {
+    const handler = vi.fn();
+    setUnauthorizedHandler(handler);
+    vi.stubGlobal(
+      'fetch',
+      reply(401, { error: { code: 'UNAUTHENTICATED', message: 'Please log in' } }),
+    );
+    await api.leaderboard('old-token').catch(() => {});
+    expect(handler).toHaveBeenCalledWith('old-token');
+    setUnauthorizedHandler(null);
+  });
+
+  it('does not fire for wrong credentials on login, or for other errors', async () => {
+    const handler = vi.fn();
+    setUnauthorizedHandler(handler);
+    vi.stubGlobal(
+      'fetch',
+      reply(401, { error: { code: 'INVALID_CREDENTIALS', message: 'Wrong' } }),
+    );
+    await api.login('a', 'b').catch(() => {});
+    vi.stubGlobal('fetch', reply(403, { error: { code: 'NOT_YOUR_TURN', message: 'No' } }));
+    await api.roll('tok', 'g').catch(() => {});
+    expect(handler).not.toHaveBeenCalled();
+    setUnauthorizedHandler(null);
   });
 });

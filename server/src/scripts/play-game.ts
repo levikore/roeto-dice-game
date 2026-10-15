@@ -1,21 +1,13 @@
 // Plays one full seeded game through the engine and prints the event log.
 // Usage: npm run play-game --workspace @dice/server -- [seed] [winningScore]
 import type { DiceRoller, GameEvent } from '@dice/shared';
+import { seededDice } from '../game/dice.ts';
 import { applyAction, createGame } from '../game/engine.ts';
 
 const seed = Number(process.argv[2] ?? 1);
 const winningScore = Number(process.argv[3] ?? 30);
 
-// mulberry32: tiny deterministic PRNG so the same seed replays the same game
-let t = seed >>> 0;
-const rand = () => {
-  t = (t + 0x6d2b79f5) >>> 0;
-  let r = Math.imul(t ^ (t >>> 15), 1 | t);
-  r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r;
-  return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
-};
-const die = () => 1 + Math.floor(rand() * 6);
-const dice: DiceRoller = { roll: () => [die(), die()] };
+const dice: DiceRoller = seededDice(seed);
 
 const created = createGame('demo', ['alice', 'bob'], winningScore);
 if (!created.ok) throw new Error(created.error.message);

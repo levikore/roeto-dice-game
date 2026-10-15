@@ -54,6 +54,9 @@ export function createApp(deps: AppDeps) {
     res.json({ leaderboard: games.leaderboard() });
   });
 
+  app.use('/api', (_req, res) => {
+    res.status(404).json({ error: { code: 'NOT_FOUND', message: 'No such endpoint' } });
+  });
   app.use(errorHandler);
   return app;
 }
