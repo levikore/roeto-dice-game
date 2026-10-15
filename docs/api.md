@@ -54,6 +54,7 @@ In a game against the bot, the bot plays its whole turn inside your roll/hold re
 | 403 | `NOT_A_PLAYER` | You are not in this game |
 | 403 | `NOT_YOUR_TURN` | The other player is up |
 | 404 | `GAME_NOT_FOUND` | No such game |
+| 404 | `NOT_FOUND` | No such endpoint |
 | 409 | `USERNAME_TAKEN` | Username exists (any letter case) |
 | 409 | `GAME_NOT_ACTIVE` | Game is waiting, finished or abandoned |
 | 409 | `GAME_NOT_JOINABLE` / `ALREADY_IN_GAME` | Cannot join this game |
@@ -62,6 +63,8 @@ In a game against the bot, the bot plays its whole turn inside your roll/hold re
 | 422 | `NOTHING_TO_HOLD` | Hold with a round score of 0 |
 | 423 | `ACTIONS_LOCKED` | Inside the pause after a 6 & 6 |
 | 429 | `TOO_MANY_REQUESTS` | Login/register rate limit |
+| 500 | `INTERNAL` | Unexpected server fault (no details are returned) |
+| 500 | `BOT_STUCK` | The bot took more than 500 moves in one turn (a safety stop) |
 | 503 | `BOT_UNAVAILABLE` | Bot user missing (run the seed) |
 
 ## Walkthrough with curl

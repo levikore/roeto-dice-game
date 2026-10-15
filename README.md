@@ -27,7 +27,7 @@ React app ──/api──▶ Express API ──▶ pure game engine (rules)
 - **Auth:** username + password (bcrypt), 24 h JWT. The player is always taken from the token, never from the request body.
 - **State:** games, scores, wins and an event log are in SQLite (`node:sqlite`, no extra install). Each game has a `version`; stale or double-sent requests are rejected.
 - **Client:** shows the `game` object the server returns, including `allowedActions` and `lockRemainingMs`. It computes no scores or turns.
-- API reference with curl walkthrough: [docs/api.md](docs/api.md).
+- Requirements, data model and the reasons behind each choice: [docs/design.md](docs/design.md). API reference with a curl walkthrough: [docs/api.md](docs/api.md).
 
 ## Assumptions
 
@@ -66,4 +66,4 @@ Logins are stateless tokens, so a stolen token works until it expires (24 h) and
 
 ## AI usage and process
 
-Built phase by phase with Claude Code; each phase ends with a checklist (see [PLAN.md](PLAN.md)) and one commit. Several defects were found by validation rather than by reading code, for example an unsafe example JWT secret, an unreadable "API down" message and a double-click error.
+Built phase by phase with Claude Code, with tests first for the rules and a clean-install check at the end of each phase. Several defects were found by validation rather than by reading code, for example an unsafe example JWT secret, an unreadable "API down" message and a double-click error.

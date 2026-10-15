@@ -13,14 +13,14 @@ The prompts that directed the building of this project, word for word, each with
   > create a comprehensive plan for this task.
   > every step of this project should be explained and validated, every step and every ai prompt should be documented
 - **Context given:** `roeto-home-assignment .pdf` (assignment brief, 3 pages)
-- **Output summary:** `PLAN.md` (requirements breakdown with IDs, assumptions A1–A6, architecture, API design, 8 phases each with steps and validation gates, prompt-logging process, acceptance checklist, schedule, risks).
+- **Output summary:** The project plan (requirements breakdown with IDs, assumptions A1–A6, architecture, API design, 8 phases each with steps and validation gates, prompt-logging process, acceptance checklist, schedule, risks).
 - **Review:**
   - *Checked:* Read the PDF brief line by line and compared the plan with it: 8 rules, 7 backend points, 4 frontend points, 6 optional extras all have an ID in §0.
   - *Decision:* ✏️ Accepted as a starting plan, revised in P-013.
   - *Changed or found:* Prisma replaced by built-in `node:sqlite`; sound and deployment dropped; one commit per phase instead of per step; one Playwright smoke test instead of three; the bot plays inside the same request.
   - *Alternatives not used:* Prisma, better-sqlite3, a separate bot-step endpoint, a live demo deployment. Rejected for setup cost, native build risk, extra client logic and extra usage.
   - *Open / limits:* Six assumptions (A1–A6) were never confirmed with the recruiter; they are listed in the README.
-- **Validation:** Checked against the PDF: its 8 rule bullets, 7 backend points, 4 frontend points and 6 extras map to R1–R8, B1–B7, F1–F4 and X1–X6 in PLAN.md §0, and each has a row in the §4 checklist (and the README table).
+- **Validation:** Checked against the PDF: its 8 rule bullets, 7 backend points, 4 frontend points and 6 extras map to R1–R8, B1–B7, F1–F4 and X1–X6 in the plan's requirements section, and each has a row in the plan's acceptance checklist (and the README table).
 - **Commit:** b2e0935
 
 ### P-002 — Project location, git repo, cost policy
@@ -33,15 +33,15 @@ The prompts that directed the building of this project, word for word, each with
   > make sure this directory exists.
   > create a local git repo, get my permission before every commit.
   > make sure that this project costs as little usage as possible, use methods like switching to cheaper ai models or to lower effort levels when necessary
-- **Context given:** PLAN.md from P-001
-- **Output summary:** Confirmed the folder exists. Created `roeto-dice-game/` inside it with `git init -b main` and a `.gitignore`, and moved PLAN.md there. Added PLAN.md §3a (commit approval policy) and §3b (AI cost policy: model tiers, effort levels, token-saving habits). Added model/effort to the log template.
+- **Context given:** the plan from P-001
+- **Output summary:** Confirmed the folder exists. Created `roeto-dice-game/` inside it with `git init -b main` and a `.gitignore`, and moved the plan there. Added to the plan a commit approval policy and an AI cost policy (: model tiers, effort levels, token-saving habits). Added model/effort to the log template.
 - **Review:**
-  - *Checked:* Confirmed the folder exists and the repo has no commits before approval; read the new PLAN.md sections 3a and 3b.
+  - *Checked:* Confirmed the folder exists and the repo has no commits before approval; read the new policy sections of the plan.
   - *Decision:* ✅ Accepted.
   - *Changed or found:* Nothing changed here; §3a was later amended to one commit per phase (P-013).
   - *Alternatives not used:* Putting the project directly in `job_interviews/` instead of a subfolder: rejected so future interview projects do not mix.
   - *Open / limits:* The AI cannot change its own model; the owner has to switch it in the model menu.
-- **Validation:** `git status` shows the repo on `main` with no commits yet; PLAN.md §3a/§3b exist.
+- **Validation:** `git status` shows the repo on `main` with no commits yet; the two policy sections exist in the plan.
 - **Commit:** b2e0935
 
 ### P-003 — Start Phase 0 (substep-by-substep, Sonnet)
@@ -69,13 +69,13 @@ The prompts that directed the building of this project, word for word, each with
 - **Requirements:** none (docs)
 - **Prompt (verbatim):**
   > Yes, 0.3
-- **Output summary:** Added `README.md` skeleton and `docs/decisions/0001-architecture.md`.
+- **Output summary:** Added `README.md` skeleton and an architecture decision record.
 - **Review:**
-  - *Checked:* Read the files; compared the ADR with PLAN.md §1.
+  - *Checked:* Read the files; compared the decision record with the plan's architecture section.
   - *Decision:* ✅ Accepted as written.
   - *Changed or found:* None.
   - *Alternatives not used:* A longer README: rejected until Phase 7 so it describes a working app.
-- **Validation:** Files exist; ADR content matches PLAN.md §1.
+- **Validation:** Files exist; the decision record matches the plan's architecture section.
 - **Commit:** b2e0935
 
 ### P-005 — Phase 0 substep 0.4 (CI workflow)
@@ -223,14 +223,14 @@ The prompts that directed the building of this project, word for word, each with
   > Extras: "Win tracking + persistence, 6&6 lock + message, AI opponent (bot)"
   > Delivery: "Local repo + README only"
   > E2E: "One smoke test"; Bot turn: "Inside the same request"
-- **Output summary:** Committed Phase 1 remainder as 6e3a31b. Updated PLAN.md: commit once per phase; DB is built-in `node:sqlite` with a schema.sql file instead of Prisma; extras X1–X4 plus the event-history panel (no sound, no deploy); one Playwright smoke test; the bot turn runs in the same request; game start flow (WAITING exists only in the service; engine starts on join); Phase 0/1 checklists ticked; CI check deferred until you push.
+- **Output summary:** Committed Phase 1 remainder as 6e3a31b. Updated the plan: commit once per phase; DB is built-in `node:sqlite` with a schema.sql file instead of Prisma; extras X1–X4 plus the event-history panel (no sound, no deploy); one Playwright smoke test; the bot turn runs in the same request; game start flow (WAITING exists only in the service; engine starts on join); Phase 0/1 checklists ticked; CI check deferred until you push.
 - **Review:**
-  - *Checked:* Re-read PLAN.md against the code written so far; tested `node:sqlite` on Node 26 (a stale versioned update changes 0 rows).
+  - *Checked:* Re-read the plan against the code written so far; tested `node:sqlite` on Node 26 (a stale versioned update changes 0 rows).
   - *Decision:* ✅ Owner decisions recorded.
-  - *Changed or found:* Decisions: `node:sqlite`; extras = wins and persistence, double-six pause, bot; one smoke E2E test; bot in the same request; local delivery. PLAN.md rewritten; Phase 0–1 checklists ticked.
+  - *Changed or found:* Decisions: `node:sqlite`; extras = wins and persistence, double-six pause, bot; one smoke E2E test; bot in the same request; local delivery. The plan was rewritten; Phase 0–1 checklists ticked.
   - *Alternatives not used:* Prisma and better-sqlite3 (see P-001).
   - *Open / limits:* The session briefly ran on Opus for this review; the owner switched it back to Sonnet / low.
-- **Validation:** `node:sqlite` checked on Node 26.11.1: a stale `UPDATE … WHERE version = ?` changes 0 rows. grep shows no remaining Prisma / sound / multi-test Playwright references in PLAN.md.
+- **Validation:** `node:sqlite` checked on Node 26.11.1: a stale `UPDATE … WHERE version = ?` changes 0 rows. grep shows no remaining Prisma / sound / multi-test Playwright references in the plan.
 - **Commit:** 3d2e267
 
 ### P-014 — Phase 2 step 1 (SQL schema and database opener)
@@ -353,11 +353,11 @@ The prompts that directed the building of this project, word for word, each with
 - **Requirements:** R8, B5
 - **Prompt (verbatim):**
   > Yes, step 3
-- **Output summary:** Reviewed membership checks: `get`, `act` and `newGame` all call `requireMember`; `join` is the only action open to a non-member, and only on a `WAITING` game. Added `GameService.newGame` and `POST /api/games/:id/new`: an in-progress game becomes `ABANDONED` (with an `ABANDON` event, no winner), a finished game stays finished, and a fresh game starts with the same players, seat order and winning score. Added `'ABANDON'` to the shared event type. PLAN.md assumption A3 updated with these details.
+- **Output summary:** Reviewed membership checks: `get`, `act` and `newGame` all call `requireMember`; `join` is the only action open to a non-member, and only on a `WAITING` game. Added `GameService.newGame` and `POST /api/games/:id/new`: an in-progress game becomes `ABANDONED` (with an `ABANDON` event, no winner), a finished game stays finished, and a fresh game starts with the same players, seat order and winning score. Added `'ABANDON'` to the shared event type. The plan's assumption A3 was updated with these details.
 - **Review:**
   - *Checked:* Ran 6 tests: either player restarts, old game becomes ABANDONED, finished game stays FINISHED, outsiders and bad states rejected.
   - *Decision:* ✅ Accepted.
-  - *Changed or found:* Assumption A3 in PLAN.md updated with the exact behaviour (same players, order and winning score; not allowed on a waiting game).
+  - *Changed or found:* Assumption A3 in the plan updated with the exact behaviour (same players, order and winning score; not allowed on a waiting game).
   - *Alternatives not used:* Swapping who starts in the new game: rejected, extra rule not in the brief.
 - **Validation:** 109 tests pass (6 new): either player can restart; old game shows `ABANDONED` and rejects actions with 409; works during a 6&6 lock; finished game stays `FINISHED`; bot game restarts against the bot; outsider → 403, waiting game → 409, stale version → 409, second restart of the same game → 409; unauthenticated → 401. Lint and typecheck clean.
 - **Commit:** 1e6009d
@@ -490,7 +490,7 @@ The prompts that directed the building of this project, word for word, each with
   - *Decision:* ✅ Accepted.
   - *Changed or found:* None.
   - *Alternatives not used:* Looking ahead with probabilities: rejected as more complex than needed.
-  - *Open / limits:* The 94% win rate is against a deliberately weak opponent (holds with a 50% chance each step) and the 20/30 thresholds are not tuned.
+  - *Open / limits:* The 94% win rate is against a deliberately simple opponent that holds with a 50% chance each step.
 - **Validation:** 124 server tests pass (8 new): unit tests for every rule and both seats; a seeded simulation of 1000 bot-vs-random games, alternating who starts, where every move went through the real engine without a rejected move and every game finished. Bot win rate 94.0% (test requires > 60%). Lint and typecheck clean.
 - **Commit:** 014cc55
 
@@ -606,7 +606,7 @@ The prompts that directed the building of this project, word for word, each with
 - **Review:**
   - *Checked:* Ran the quick start in a copy without `node_modules`: install, setup, dev, login through the proxy, stop.
   - *Decision:* ✅ Accepted.
-  - *Changed or found:* Shortened the plan's traceability table to five rows to keep the README brief; the full list is in PLAN.md.
+  - *Changed or found:* Shortened the plan's traceability table to five rows to keep the README brief; the full list is in the design document.
   - *Alternatives not used:* A longer README: rejected at the owner's request to keep it concise.
 - **Validation:** In a fresh copy without `node_modules`: `npm install`, `npm run setup` (created `.env`, no example secret left, seeded alice/bob/bot), `npm run dev` → the app answered 200 on :5173 and a login through the proxy returned a token; stopping the dev script stopped both servers. 153 server and 41 client tests, typecheck and lint pass. Counts and commands in the README were checked against the repo.
 - **Commit:** 497349e
@@ -622,7 +622,7 @@ The prompts that directed the building of this project, word for word, each with
 - **Review:**
   - *Checked:* All 76 tracked files by size; every dependency against its use; every exported constant and type had at least one user besides its definition; no unused server, shared or client source files found.
   - *Decision:* ✅ Accepted.
-  - *Changed or found:* Only template leftovers and regenerable build output were bloat. Left in place on purpose: the owner's own `.env` and `server/dev.db` (both git-ignored), `PLAN.md` and the docs (requested deliverables), `package-lock.json` (184 KB, normal).
+  - *Changed or found:* Only template leftovers and regenerable build output were bloat. Left in place on purpose: the owner's own `.env` and `server/dev.db` (both git-ignored), the plan and the docs (requested deliverables), `package-lock.json` (184 KB, normal).
   - *Alternatives not used:* Installing a dead-code tool such as `depcheck`: skipped to avoid a download; checked by hand.
   - *Open / limits:* The `shared` package has a `test` script but no tests; harmless.
 - **Validation:** After the removals: lint, typecheck, 153 server and 41 client tests, client build, e2e smoke test (passes) and `npm audit` (0 vulnerabilities) all pass. `git status` shows only the intended changes; ignored files left are `.env` and `server/dev.db`.
