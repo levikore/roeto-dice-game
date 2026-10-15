@@ -35,7 +35,7 @@ React app ──/api──▶ Express API ──▶ pure game engine (rules)
 | Layer | Choice | Why |
 |---|---|---|
 | Language | TypeScript, npm workspaces (`shared`, `server`, `client`) | One install; the API types are shared by server and client |
-| API | Node 22.13+ and Express 5, Zod for input | Familiar to reviewers; one schema is both the check and the type |
+| API | Node 22.18+ and Express 5, Zod for input | Familiar to reviewers; one schema is both the check and the type |
 | Database | built-in `node:sqlite` | No dependency or build step. One machine is enough for the brief. A stale write changes 0 rows, which the version check relies on |
 | Passwords | `bcryptjs`, cost 10 | Pure JavaScript, so no native build on a new Node. Slower than native bcrypt, which does not matter here |
 | Sessions | JWT (HS256, 24 h) in an `Authorization: Bearer` header | Stateless, so there is no session table. The cost: a token cannot be revoked before it expires |

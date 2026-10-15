@@ -6,7 +6,7 @@ Two-player dice game. **All rules run in an authenticated backend API**; the Rea
 
 ## Quick start
 
-Needs Node 22.13+ (built-in SQLite) and npm.
+Needs Node 22.18+ (runs TypeScript and SQLite built in) and npm.
 
 ```bash
 npm install
