@@ -45,11 +45,27 @@ export interface DiceRoller {
   roll(): DiceRoll;
 }
 
-export type GameEventType = 'ROLL' | 'HOLD' | 'BUST' | 'WIN';
+export type GameEventType = 'ROLL' | 'HOLD' | 'BUST' | 'WIN' | 'ABANDON';
 
 export interface GameEvent {
   type: GameEventType;
   userId: string;
   dice?: DiceRoll;
   scoreDelta: number;
+}
+
+/** What the API returns for a game. The client renders this and never computes rules. */
+export interface GameView {
+  id: string;
+  status: GameStatus;
+  winningScore: number;
+  players: { userId: string; username: string; globalScore: number; wins: number }[];
+  currentPlayerId: string | null;
+  roundScore: number;
+  winnerId: string | null;
+  /** Actions the current player may take right now (empty while locked or finished). */
+  allowedActions: ActionType[];
+  /** Milliseconds until actions unlock after a 6&6 (0 when not locked). */
+  lockRemainingMs: number;
+  version: number;
 }

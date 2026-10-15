@@ -255,3 +255,63 @@ Process rules: see [PLAN.md §3](../PLAN.md#3-ai-usage-and-prompt-documentation-
 - **Review:** _to fill in. Two issues found while validating, both fixed: (1) an oversized body returned 500 instead of 413 (real bug, caught by a test); (2) a live server run showed Node's built-in TypeScript mode rejects constructor parameter properties in `ApiError`, which Vitest had accepted. Rewrote the class and added `erasableSyntaxOnly` to `tsconfig.base.json` so typecheck catches this from now on. My first CORS test was also wrong (the header names the allowed origin; the browser does the blocking) and was corrected._
 - **Validation:** 64 tests pass; lint and typecheck clean. Live check: started the real server with a temporary `.env`, seeded the DB, `POST /api/auth/login` as alice returned a token and `GET /api/auth/me` without a token returned 401. The temporary `.env` and `dev.db` were removed.
 - **Commit:** Phase 2 commit
+
+### P-019 — Phase 3 step 1 (GameService)
+- **Date:** 2026-10-15
+- **Tool / model / effort:** Claude Code desktop (Sonnet 5.5, low effort)
+- **Phase / step:** Phase 3, step 1
+- **Requirements:** B3, B4, B5, R7, X3 (bot game start)
+- **Prompt (verbatim):**
+  > Yes, step 1
+- **Output summary:** Added `GameView` to `shared/src/game.ts` (what the API returns: usernames, wins, `currentPlayerId`, `allowedActions`, `lockRemainingMs`, `version`; the client renders it and computes nothing). Added `server/src/game/dice.ts` (`secureDice` using `crypto.randomInt`) and `server/src/game/service.ts` with `create`, `join`, `get` and `act`. Each write runs in a `BEGIN IMMEDIATE` transaction, loads the game, calls the pure engine, saves with a conditional `UPDATE … WHERE version = ?`, and appends `game_events`. Engine error codes map to HTTP statuses (403/409/423/422/400). `newGame`, win counting and the HTTP routes are left for steps 2–5.
+- **Review:** _to fill in_
+- **Validation:** 80 tests pass (16 new in `service.test.ts`): waiting/started/bot games, bad winning scores, own/full/unknown game joins, outsider read and act blocked, roll and hold persisted with events, 6&6 lock with a fake clock, stale `expectedVersion` rejected without rolling dice, and a forced mid-transaction failure rolled back completely. Lint and typecheck clean.
+- **Commit:** Phase 3 commit
+
+### P-020 — Phase 3 step 2 (game HTTP routes)
+- **Date:** 2026-10-15
+- **Tool / model / effort:** Claude Code desktop (Sonnet 5.5, low effort)
+- **Phase / step:** Phase 3, step 2
+- **Requirements:** B3–B6, R7
+- **Prompt (verbatim):**
+  > Yes, step 2
+- **Output summary:** Added `server/src/http/games.ts`: `POST /api/games`, `GET /api/games/:id`, `POST /api/games/:id/join`, `POST /api/games/:id/roll`, `POST /api/games/:id/hold`, all behind `requireAuth`, with zod-validated bodies and params. `createApp` now builds the `GameService` and accepts injectable `dice` and `now` (used by tests). Responses are `{ game }` or `{ game, events }`. `POST /:id/new` and the leaderboard are still to come.
+- **Review:** _to fill in_
+- **Validation:** 103 tests pass (23 new in `games.test.ts`, through real HTTP with supertest): every game route → 401 without a token; create/join; bot game; winning scores `0`, `-5`, `10001`, `12.5` → 400 `INVALID_WINNING_SCORE`, `"abc"` and bad opponent → 400 `VALIDATION_ERROR`; outsider read and act → 403 `NOT_A_PLAYER`; wrong player → 403 `NOT_YOUR_TURN`; hold with nothing → 422; 6&6 → 423 then success after the lock; stale `expectedVersion` → 409; finished game → 409 for both players and both actions. Lint and typecheck clean.
+- **Commit:** Phase 3 commit
+
+### P-021 — Phase 3 step 3 (membership review and "new game")
+- **Date:** 2026-10-15
+- **Tool / model / effort:** Claude Code desktop (Sonnet 5.5, low effort)
+- **Phase / step:** Phase 3, steps 3–4 of the plan (membership checks, `new` route)
+- **Requirements:** R8, B5
+- **Prompt (verbatim):**
+  > Yes, step 3
+- **Output summary:** Reviewed membership checks: `get`, `act` and `newGame` all call `requireMember`; `join` is the only action open to a non-member, and only on a `WAITING` game. Added `GameService.newGame` and `POST /api/games/:id/new`: an in-progress game becomes `ABANDONED` (with an `ABANDON` event, no winner), a finished game stays finished, and a fresh game starts with the same players, seat order and winning score. Added `'ABANDON'` to the shared event type. PLAN.md assumption A3 updated with these details.
+- **Review:** _to fill in_
+- **Validation:** 109 tests pass (6 new): either player can restart; old game shows `ABANDONED` and rejects actions with 409; works during a 6&6 lock; finished game stays `FINISHED`; bot game restarts against the bot; outsider → 403, waiting game → 409, stale version → 409, second restart of the same game → 409; unauthenticated → 401. Lint and typecheck clean.
+- **Commit:** Phase 3 commit
+
+### P-022 — Phase 3 step 4 (win counting and leaderboard)
+- **Date:** 2026-10-15
+- **Tool / model / effort:** Claude Code desktop (Sonnet 5.5, low effort)
+- **Phase / step:** Phase 3, steps 5–6 of the plan
+- **Requirements:** X1, R6
+- **Prompt (verbatim):**
+  > Yes, step 4
+- **Output summary:** `GameService.act` now adds one win to the winner inside the same transaction as the deciding hold. Added `GameService.leaderboard()` and `GET /api/leaderboard` (login required, most wins first, bot included and flagged).
+- **Review:** _to fill in_
+- **Validation:** 115 tests pass (6 new): leaderboard needs login; winner +1, loser +0; no extra win for actions after the game ends or for restarting; wins across several games rank correctly; an abandoned game gives nobody a win; and the plan's scripted game with brand-new users (register → create → join → play incl. a 6&6 → win) ends with `wins` = 1 for the winner. Lint clean.
+- **Commit:** Phase 3 commit
+
+### P-023 — Phase 3 step 5 (API docs, concurrency test, curl walkthrough)
+- **Date:** 2026-10-15
+- **Tool / model / effort:** Claude Code desktop (Sonnet 5.5, low effort)
+- **Phase / step:** Phase 3, step 6 and validation
+- **Requirements:** B4, B5
+- **Prompt (verbatim):**
+  > Yes, step 5
+- **Output summary:** Wrote `docs/api.md` (endpoint table, the `game` object, error codes, curl walkthrough). Added a test that fires two rolls at once with the same `expectedVersion`.
+- **Review:** _to fill in_
+- **Validation:** 116 tests pass; lint and typecheck clean. Concurrency test: exactly one 200 and one 409, and only one roll's dice were used. Walkthrough: extracted the bash block from `docs/api.md` and ran it unchanged against the real server (seeded temporary database): printed `IN_PROGRESS`, `NOT_YOUR_TURN`, a round score, the same score banked, `UNAUTHENTICATED`, `IN_PROGRESS`, `3` — twice, with the same pattern. The temporary `.env` and database were removed. Note: with random dice a 6&6 on the roll (1 in 36) would pass the turn and the hold line would print the previous score instead.
+- **Commit:** Phase 3 commit

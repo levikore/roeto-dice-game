@@ -56,7 +56,7 @@ Each requirement gets an ID. Every test, commit and prompt-log entry refers back
 |---|----------|----------|
 | A1 | Is the win checked after every roll or only on Hold? | **Only on Hold.** Points count only once they are banked into the global score. |
 | A2 | Can a player Hold with a round score of 0? | **No** → `422 NOTHING_TO_HOLD`. A 0-point hold is just a way to skip a turn. |
-| A3 | Who can start a new game? | Either player in the game, at any time. The old game is marked `ABANDONED` and nobody wins it. |
+| A3 | Who can start a new game? | Either player in the game, at any time. The old game is marked `ABANDONED` and nobody wins it. A finished game is left as it is. The new game keeps the same players, seat order and winning score. Not allowed on a game still `WAITING` for its second player. |
 | A4 | What winning scores are allowed? | Whole numbers from 10 to 1000, default 100. |
 | A5 | How do two users "share the same page"? | Both players log in on one screen. The client keeps **one token per player** and sends the current player's token for each action. The server checks that the token's user is the player whose turn it is. |
 | A6 | Does a single 6 do anything? | No. Only a 6 & 6 roll ends the turn. |
@@ -197,13 +197,13 @@ Do not start the next phase until every Validation box in the current one is tic
 6. Write the OpenAPI spec, or `docs/api.md` with curl examples.
 
 **Validation (Supertest integration tests using a fixed `DiceRoller`)**
-- [ ] A full scripted game from register to win passes, and `wins` goes up by 1.
-- [ ] Player B tries to roll on player A's turn → 403 `NOT_YOUR_TURN`.
-- [ ] A third user reads or acts on the game → 403 `NOT_A_PLAYER`.
-- [ ] Two concurrent rolls with the same `expectedVersion` → exactly one succeeds and the other gets 409.
-- [ ] Bad `winningScore` values (`0`, `-5`, `"abc"`, `10001`) → 400.
-- [ ] Any action on a `FINISHED` or `ABANDONED` game → 409.
-- [ ] A manual curl walkthrough following `docs/api.md` works as written.
+- [x] A full scripted game from register to win passes, and `wins` goes up by 1.
+- [x] Player B tries to roll on player A's turn → 403 `NOT_YOUR_TURN`.
+- [x] A third user reads or acts on the game → 403 `NOT_A_PLAYER`.
+- [x] Two concurrent rolls with the same `expectedVersion` → exactly one succeeds and the other gets 409.
+- [x] Bad `winningScore` values (`0`, `-5`, `"abc"`, `10001`) → 400.
+- [x] Any action on a `FINISHED` or `ABANDONED` game → 409.
+- [x] A manual curl walkthrough following `docs/api.md` works as written (the bash block was extracted and run unchanged).
 
 ---
 
