@@ -6,6 +6,7 @@ import { openDb } from '../db/db.ts';
 import { seed } from '../db/seed.ts';
 
 let app: ReturnType<typeof createApp>;
+let db: ReturnType<typeof openDb>;
 let queue: DiceRoll[];
 let clock: number;
 let A: string; // alice's token
@@ -27,7 +28,7 @@ const startGame = async (winningScore = 50) => {
 };
 
 beforeEach(async () => {
-  const db = openDb(':memory:');
+  db = openDb(':memory:');
   seed(db, 'demo1234');
   queue = [];
   clock = 5_000_000;
@@ -369,5 +370,119 @@ describe('wins and leaderboard (X1)', () => {
     expect(win.body.game.players[0]).toMatchObject({ username: 'dave', globalScore: 15, wins: 1 });
     expect(await wins(dave)).toBe(1);
     expect(await wins(erin)).toBe(0);
+  });
+});
+
+describe('bot opponent plays inside the same request (X3)', () => {
+  const startBotGame = async (winningScore = 100) =>
+    (await create(A, { opponent: 'bot', winningScore })).body.game.id as string;
+  const wins = async (token: string) =>
+    (await request(app).get('/api/auth/me').set(as(token))).body.user.wins;
+
+  it("after the human holds, the bot rolls and holds, then it is the human's turn again", async () => {
+    const id = await startBotGame();
+    queue.push([2, 3]); // human
+    await act(A, id, 'roll');
+    queue.push([5, 5], [5, 5]); // bot: 10, 20 → holds at 20
+    const res = await act(A, id, 'hold');
+    expect(res.status).toBe(200);
+    expect(res.body.events.map((e: { type: string; userId: string }) => e.type)).toEqual([
+      'HOLD',
+      'ROLL',
+      'ROLL',
+      'HOLD',
+    ]);
+    const { players, currentPlayerId, allowedActions } = res.body.game;
+    expect(
+      players.map((p: { username: string; globalScore: number }) => [p.username, p.globalScore]),
+    ).toEqual([
+      ['alice', 5],
+      ['bot', 20],
+    ]);
+    expect(currentPlayerId).toBe(players[0].userId);
+    expect(allowedActions).toEqual(['ROLL']);
+    expect(queue).toHaveLength(0);
+  });
+
+  it('plays the bot turn even right after the human busts (the pause is not an obstacle)', async () => {
+    const id = await startBotGame();
+    queue.push([6, 6]); // human busts
+    queue.push([5, 5], [5, 5]); // bot rolls 20 and holds
+    const res = await act(A, id, 'roll');
+    expect(res.status).toBe(200);
+    expect(res.body.events.map((e: { type: string }) => e.type)).toEqual([
+      'BUST',
+      'ROLL',
+      'ROLL',
+      'HOLD',
+    ]);
+    expect(res.body.game.players[1].globalScore).toBe(20);
+  });
+
+  it('when the bot busts, the turn and the pause go back to the human', async () => {
+    const id = await startBotGame();
+    queue.push([1, 1]);
+    await act(A, id, 'roll');
+    queue.push([4, 4], [6, 6]); // bot rolls 8 then busts
+    const res = await act(A, id, 'hold');
+    expect(res.body.events.map((e: { type: string }) => e.type)).toEqual(['HOLD', 'ROLL', 'BUST']);
+    expect(res.body.game).toMatchObject({ roundScore: 0, allowedActions: [] });
+    expect(res.body.game.lockRemainingMs).toBeGreaterThan(0);
+    expect(res.body.game.currentPlayerId).toBe(res.body.game.players[0].userId);
+  });
+
+  it('the bot can win; the game ends, its win is counted and the human has no more moves', async () => {
+    const id = await startBotGame(10);
+    queue.push([1, 1]);
+    await act(A, id, 'roll');
+    queue.push([5, 5]); // bot: 10 → holding wins
+    const res = await act(A, id, 'hold');
+    expect(res.body.events.map((e: { type: string }) => e.type)).toEqual([
+      'HOLD',
+      'ROLL',
+      'HOLD',
+      'WIN',
+    ]);
+    expect(res.body.game).toMatchObject({ status: 'FINISHED', allowedActions: [] });
+    expect(res.body.game.winnerId).toBe(res.body.game.players[1].userId);
+    const board = (await request(app).get('/api/leaderboard').set(as(A))).body.leaderboard;
+    expect(board.find((r: { username: string }) => r.username === 'bot').wins).toBe(1);
+    expect(await wins(A)).toBe(0);
+    expect((await act(A, id, 'roll')).body.error.code).toBe('GAME_NOT_ACTIVE');
+  });
+
+  it('does not use the bot when the human wins', async () => {
+    const id = await startBotGame(10);
+    queue.push([5, 5]);
+    await act(A, id, 'roll');
+    const res = await act(A, id, 'hold'); // queue is empty: a bot roll would throw
+    expect(res.body.game.status).toBe('FINISHED');
+    expect(res.body.game.winnerId).toBe(res.body.game.players[0].userId);
+  });
+
+  it("records the bot's moves in the event log under the bot", async () => {
+    const id = await startBotGame();
+    queue.push([2, 2]);
+    await act(A, id, 'roll');
+    queue.push([5, 5], [5, 5]);
+    await act(A, id, 'hold');
+    const rows = db
+      .prepare(
+        `SELECT u.username, e.type FROM game_events e JOIN users u ON u.id = e.user_id WHERE e.game_id = ? ORDER BY e.id`,
+      )
+      .all(id);
+    expect(rows).toEqual([
+      { username: 'alice', type: 'ROLL' },
+      { username: 'alice', type: 'HOLD' },
+      { username: 'bot', type: 'ROLL' },
+      { username: 'bot', type: 'ROLL' },
+      { username: 'bot', type: 'HOLD' },
+    ]);
+  });
+
+  it('nobody but the human can make the bot move: the bot token does not exist, and an outsider is refused', async () => {
+    const id = await startBotGame();
+    expect((await act(C, id, 'roll')).status).toBe(403);
+    expect((await act(B, id, 'roll')).body.error.code).toBe('NOT_A_PLAYER');
   });
 });

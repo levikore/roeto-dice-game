@@ -2,6 +2,7 @@ import type { GameView } from '@dice/shared'
 import { useState } from 'react'
 import Board from './Board.tsx'
 import AuthPanel from './AuthPanel.tsx'
+import Leaderboard from './Leaderboard.tsx'
 import Lobby from './Lobby.tsx'
 import { type Session, type Slot, useSessions } from './session.ts'
 
@@ -25,6 +26,9 @@ export default function App() {
       {sessions.p1 && !game && <Lobby sessions={sessions} onStarted={setGame} />}
       {game && (
         <Board game={game} sessions={sessions} onGame={setGame} onLeave={() => setGame(null)} />
+      )}
+      {(sessions.p1 ?? sessions.p2) && (
+        <Leaderboard token={(sessions.p1 ?? sessions.p2)!.token} refreshKey={game?.winnerId ?? null} />
       )}
     </main>
   )

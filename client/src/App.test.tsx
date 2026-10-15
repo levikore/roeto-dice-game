@@ -7,7 +7,7 @@ import App from './App.tsx'
 
 vi.mock('./api/client.ts', async (orig) => ({
   ...(await orig<typeof import('./api/client.ts')>()),
-  api: { login: vi.fn(), register: vi.fn() },
+  api: { login: vi.fn(), register: vi.fn(), leaderboard: vi.fn() },
 }))
 
 const renderApp = () =>
@@ -25,7 +25,10 @@ async function signIn(who: string, username: string) {
   await userEvent.click(p.getByRole('button', { name: 'Log in' }))
 }
 
-beforeEach(() => sessionStorage.clear())
+beforeEach(() => {
+  sessionStorage.clear()
+  vi.mocked(api.leaderboard).mockResolvedValue({ leaderboard: [] })
+})
 afterEach(() => {
   cleanup()
   vi.resetAllMocks()

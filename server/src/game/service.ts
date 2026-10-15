@@ -11,6 +11,7 @@ import type {
   GameView,
 } from '@dice/shared';
 import { ApiError } from '../http/errors.ts';
+import { chooseAction } from './bot.ts';
 import { applyAction, createGame as engineCreate, DEFAULT_WINNING_SCORE } from './engine.ts';
 
 export interface GameServiceDeps {
@@ -48,8 +49,11 @@ interface PlayerRow {
   user_id: string;
   username: string;
   wins: number;
+  is_bot: number;
   global_score: number;
 }
+
+const MAX_BOT_MOVES = 500;
 
 export function createGameService({ db, dice, now = Date.now }: GameServiceDeps) {
   const notFound = () => new ApiError(404, 'GAME_NOT_FOUND', 'Game not found');
@@ -75,7 +79,7 @@ export function createGameService({ db, dice, now = Date.now }: GameServiceDeps)
   function loadPlayers(gameId: string): PlayerRow[] {
     return db
       .prepare(
-        `SELECT gp.user_id, u.username, u.wins, gp.global_score
+        `SELECT gp.user_id, u.username, u.wins, u.is_bot, gp.global_score
            FROM game_players gp JOIN users u ON u.id = gp.user_id
           WHERE gp.game_id = ? ORDER BY gp.seat`,
       )
@@ -150,6 +154,90 @@ export function createGameService({ db, dice, now = Date.now }: GameServiceDeps)
     playerIds.forEach((userId, seat) => addPlayer.run(id, seat, userId));
   }
 
+  /** Validates one move with the engine and saves the new state and its events. */
+  function applyAndSave(
+    gameId: string,
+    userId: string,
+    action: Action,
+    at: number,
+    expectedVersion?: number,
+  ): GameEvent[] {
+    const row = loadRow(gameId);
+    const players = loadPlayers(gameId);
+    requireMember(players, userId);
+    if (expectedVersion !== undefined && expectedVersion !== row.version) throw staleVersion();
+
+    const result = applyAction(toState(row, players), action, userId, dice, at);
+    if (!result.ok) throw engineError(result.error);
+    const { state, events } = result.value;
+
+    const changed = db
+      .prepare(
+        `UPDATE games SET status = ?, current_player_index = ?, round_score = ?, winner_id = ?,
+                          locked_until = ?, version = ?, updated_at = ?
+          WHERE id = ? AND version = ?`,
+      )
+      .run(
+        state.status,
+        state.currentPlayerIndex,
+        state.roundScore,
+        state.winnerId ?? null,
+        state.lockedUntil ?? null,
+        state.version,
+        now(),
+        gameId,
+        row.version,
+      ).changes;
+    if (changed !== 1) throw staleVersion();
+
+    // The win is counted in the same transaction as the move that decided it.
+    if (state.status === 'FINISHED' && state.winnerId) {
+      db.prepare('UPDATE users SET wins = wins + 1 WHERE id = ?').run(state.winnerId);
+    }
+
+    const setScore = db.prepare(
+      'UPDATE game_players SET global_score = ? WHERE game_id = ? AND user_id = ?',
+    );
+    for (const p of state.players) setScore.run(p.globalScore, gameId, p.userId);
+
+    const addEvent = db.prepare(
+      `INSERT INTO game_events (game_id, user_id, type, die1, die2, score_delta, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    );
+    for (const e of events) {
+      addEvent.run(
+        gameId,
+        e.userId,
+        e.type,
+        e.dice?.[0] ?? null,
+        e.dice?.[1] ?? null,
+        e.scoreDelta,
+        now(),
+      );
+    }
+    return events;
+  }
+
+  /**
+   * While it is the bot's turn, let it choose a move and apply it through the same engine path
+   * as any player. The 6&6 pause is for the human's screen, so the bot moves at the time the
+   * pause ends instead of being rejected.
+   */
+  function playBotTurns(gameId: string): GameEvent[] {
+    const events: GameEvent[] = [];
+    for (let i = 0; i < MAX_BOT_MOVES; i++) {
+      const row = loadRow(gameId);
+      const players = loadPlayers(gameId);
+      if (row.status !== 'IN_PROGRESS' || players.length < 2) return events;
+      const current = players[row.current_player_index];
+      if (!current.is_bot) return events;
+      const type = chooseAction(toState(row, players), current.user_id);
+      const at = Math.max(now(), row.locked_until ?? 0);
+      events.push(...applyAndSave(gameId, current.user_id, { type }, at));
+    }
+    throw new ApiError(500, 'BOT_STUCK', 'The bot took too many moves');
+  }
+
   return {
     /** Creates a game. Against a human it waits for `join`; against the bot it starts at once. */
     create(userId: string, opts: { winningScore?: number; opponent?: 'human' | 'bot' }): GameView {
@@ -209,62 +297,14 @@ export function createGameService({ db, dice, now = Date.now }: GameServiceDeps)
       return toView(row, players, now());
     },
 
-    /** Roll or hold. `expectedVersion` (optional) rejects requests made from an outdated view. */
+    /**
+     * Roll or hold. `expectedVersion` (optional) rejects requests made from an outdated view.
+     * If the turn then passes to the bot, the bot plays its whole turn in the same transaction.
+     */
     act(gameId: string, userId: string, action: Action, expectedVersion?: number): ActionResult {
       return transaction(() => {
-        const row = loadRow(gameId);
-        const players = loadPlayers(gameId);
-        requireMember(players, userId);
-        if (expectedVersion !== undefined && expectedVersion !== row.version) throw staleVersion();
-
-        const result = applyAction(toState(row, players), action, userId, dice, now());
-        if (!result.ok) throw engineError(result.error);
-        const { state, events } = result.value;
-
-        const changed = db
-          .prepare(
-            `UPDATE games SET status = ?, current_player_index = ?, round_score = ?, winner_id = ?,
-                              locked_until = ?, version = ?, updated_at = ?
-              WHERE id = ? AND version = ?`,
-          )
-          .run(
-            state.status,
-            state.currentPlayerIndex,
-            state.roundScore,
-            state.winnerId ?? null,
-            state.lockedUntil ?? null,
-            state.version,
-            now(),
-            gameId,
-            row.version,
-          ).changes;
-        if (changed !== 1) throw staleVersion();
-
-        // The win is counted in the same transaction as the move that decided it.
-        if (state.status === 'FINISHED' && state.winnerId) {
-          db.prepare('UPDATE users SET wins = wins + 1 WHERE id = ?').run(state.winnerId);
-        }
-
-        const setScore = db.prepare(
-          'UPDATE game_players SET global_score = ? WHERE game_id = ? AND user_id = ?',
-        );
-        for (const p of state.players) setScore.run(p.globalScore, gameId, p.userId);
-
-        const addEvent = db.prepare(
-          `INSERT INTO game_events (game_id, user_id, type, die1, die2, score_delta, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        );
-        for (const e of events) {
-          addEvent.run(
-            gameId,
-            e.userId,
-            e.type,
-            e.dice?.[0] ?? null,
-            e.dice?.[1] ?? null,
-            e.scoreDelta,
-            now(),
-          );
-        }
+        const events = applyAndSave(gameId, userId, action, now(), expectedVersion);
+        events.push(...playBotTurns(gameId));
         return { game: view(gameId), events };
       });
     },

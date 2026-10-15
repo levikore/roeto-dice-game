@@ -57,3 +57,16 @@ button.secondary { background: none; color: var(--accent); }
 .messages p { margin: 2px 0; }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.history { margin-top: 16px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 8px 16px; }
+.history summary { cursor: pointer; color: var(--muted); }
+.history ol { list-style: none; padding: 0; margin: 8px 0; max-height: 12rem; overflow-y: auto; }
+.history li { padding: 3px 0; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+.bust .die { animation: shake 0.6s; }
+.bust-message { color: var(--danger); font-weight: 700; animation: pop 0.4s; }
+@keyframes shake { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-10px) rotate(-8deg); } 40% { transform: translateX(10px) rotate(8deg); } 60% { transform: translateX(-6px); } 80% { transform: translateX(6px); } }
+@keyframes pop { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .bust .die, .bust-message { animation: none; } }
+.leaderboard { margin-top: 16px; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+th { color: var(--muted); font-size: 0.85rem; font-weight: 600; }

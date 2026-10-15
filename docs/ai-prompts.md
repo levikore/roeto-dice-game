@@ -375,3 +375,51 @@ Process rules: see [PLAN.md §3](../PLAN.md#3-ai-usage-and-prompt-documentation-
 - **Review:** _to fill in. Lighthouse itself was not run (it needs a separate download); the axe-core engine that Lighthouse's accessibility audit is built on was used instead, so there is no Lighthouse score to quote._
 - **Validation:** Through the browser, against the real API via the Vite proxy: log in Player 1 (200) and Player 2; start a game to 10; played a whole game with real clicks (alice 11, bob 6): turns alternated, "🏆 alice wins!" shown, Roll/Hold disabled afterwards, alice's wins went 0 → 1, no error banner. axe-core (WCAG 2 A/AA + best practices): first run 1 serious violation (button contrast, 2 buttons) → fixed → 0 violations in dark mode and in light mode at 375 px wide, no horizontal scroll; one item "needs manual review" (colour contrast on the dice glyphs). 28 client + 116 server tests, typecheck, lint and the production build all pass after the fixes.
 - **Commit:** Phase 4 commit
+
+### P-029 — Phase 5 step 1 (bot strategy)
+- **Date:** 2026-10-15
+- **Tool / model / effort:** Claude Code desktop (Sonnet 5.5, low effort)
+- **Phase / step:** Phase 5, step 2 of the plan (X3, strategy part)
+- **Requirements:** X3
+- **Prompt (verbatim):**
+  > Yes, step 1
+- **Output summary:** Added `server/src/game/bot.ts`: `chooseAction(state, botId)` returns `'ROLL'` or `'HOLD'` from the game state alone. Rules: roll when the round score is 0; hold if holding wins; hold at a round score of 20; hold at 30 instead when the opponent is within 20 of winning and ahead. It only picks a move; the engine still validates and applies it. Added `bot.test.ts`.
+- **Review:** _to fill in. Note: the simulation opponent is deliberately simple (holds with a 50% chance each step), so the high win rate shows the bot is sensible, not that it is strong. The 20/30 thresholds are my choice, not tuned._
+- **Validation:** 124 server tests pass (8 new): unit tests for every rule and both seats; a seeded simulation of 1000 bot-vs-random games, alternating who starts, where every move went through the real engine without a rejected move and every game finished. Bot win rate 94.0% (test requires > 60%). Lint and typecheck clean.
+- **Commit:** Phase 5 commit
+
+### P-030 — Phase 5 step 2 (bot plays inside the request)
+- **Date:** 2026-10-15
+- **Tool / model / effort:** Claude Code desktop (Sonnet 5.5, low effort)
+- **Phase / step:** Phase 5, step 2 of the plan (X3, integration)
+- **Requirements:** X3, B3, B5
+- **Prompt (verbatim):**
+  > Yes, step 2
+- **Output summary:** Refactored `GameService.act` into `applyAndSave` (one validated move: engine, save, win count, events) plus `playBotTurns`: after the human's move, while the current player is the bot, `chooseAction` picks a move and it goes through `applyAndSave` like any other move, all inside the same transaction. The bot's moves are returned in `events`. The 6&6 pause is for the human's screen, so a bot move is applied at the time the pause ends rather than being rejected. A 500-move guard stops an endless loop. `docs/api.md` notes this.
+- **Review:** _to fill in. Design consequence: after a human bust, the bot's following move clears the pause, so the UI must show the bust from the returned events, not from the lock._
+- **Validation:** 131 server tests pass (7 new bot tests over HTTP with fixed dice): bot rolls 10, 20 and holds after the human holds; bot moves right after a human bust; bot bust hands back the turn with a pause; bot wins at 10, game ends, bot's win counted, human refused further moves; no bot dice used when the human wins (empty dice queue would throw); bot moves stored in the event log under the bot; outsiders cannot act. All 124 earlier tests still pass after the refactor. Lint and typecheck clean.
+- **Commit:** Phase 5 commit
+
+### P-031 — Phase 5 step 3 (UI: bot replay, double-six animation, history panel)
+- **Date:** 2026-10-15
+- **Tool / model / effort:** Claude Code desktop (Sonnet 5.5, low effort)
+- **Phase / step:** Phase 5, steps 1, 3 and 4 of the plan (X3 UI, X4, X6)
+- **Requirements:** X3, X4, X6, F2, F4
+- **Prompt (verbatim):**
+  > Yes, step 3
+- **Output summary:** Rewrote `client/src/Board.tsx`. When one request returns several moves (the bot answered), they are shown one at a time (800 ms apart) and the new scores appear after the last one; buttons stay off meanwhile. A double six shakes the dice and shows a red "Double six!" message (animation is switched off for users who prefer reduced motion). A History panel lists every move shown in the current game, newest first, and starts over for a new game. The message area now shows only the latest move. CSS added.
+- **Review:** _to fill in. Known limits: history is kept in the browser, so a page reload clears it; during a replay the scores still show the old values until the end, because working out intermediate scores would put rules in the client._
+- **Validation:** 31 client tests pass (3 new replay/history tests with fake timers: moves shown one by one with the bot's score unchanged and buttons off until the end, then the final state; history order and content; history cleared on New game; the BUST test also checks the shake class). Lint, typecheck and build clean. Live check against the real API in the browser: a bot game to 40: the bot's moves were replayed, history reached 13 entries, the bot won 41 to 31 and the header showed "🏆 bot wins!", no error banner. A double six did not happen in that run (random), so it is covered by the test only. Servers stopped and the temporary `.env` and database removed.
+- **Commit:** Phase 5 commit
+
+### P-032 — Phase 5 step 4 (leaderboard panel)
+- **Date:** 2026-10-15
+- **Tool / model / effort:** Claude Code desktop (Sonnet 5.5, low effort)
+- **Phase / step:** Phase 5, step 3 of the plan (X1 in the UI)
+- **Requirements:** X1
+- **Prompt (verbatim):**
+  > Yes, step 4
+- **Output summary:** Added `client/src/Leaderboard.tsx` (table of wins in the order the server sends, bot marked) and showed it below the board whenever someone is signed in. It reads the table again when a game ends. Table styles added.
+- **Review:** _to fill in_
+- **Validation:** 34 client tests pass (3 new): rows and order from the server, token used, bot marked; refetch when the game's winner changes; error message shown. Typecheck, lint and build clean. Not re-checked in the browser (small, standard table; the axe scan from Phase 4 has not been repeated for it).
+- **Commit:** Phase 5 commit

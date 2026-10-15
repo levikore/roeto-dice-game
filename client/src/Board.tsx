@@ -11,6 +11,10 @@ interface Props {
   onLeave: () => void
 }
 
+/** Pause between replayed moves when one request carries several (e.g. the bot's turn). */
+const REPLAY_MS = 800
+const HISTORY_SHOWN = 20
+
 // Unicode die faces ⚀-⚅: pure presentation of a number the server sent.
 const face = (n: number) => String.fromCodePoint(0x267f + n)
 
@@ -30,9 +34,15 @@ function describe(e: GameEvent, name: (id: string) => string): string {
   }
 }
 
+interface Replay {
+  rest: GameEvent[] // moves not shown yet
+  game: GameView // the state to show once they have all been shown
+}
+
 /** Shows exactly what the server says. Buttons come from `allowedActions`; no rules live here. */
 export default function Board({ game, sessions, onGame, onLeave }: Props) {
-  const [events, setEvents] = useState<GameEvent[]>([])
+  const [log, setLog] = useState<GameEvent[]>([]) // everything shown so far in this game
+  const [replay, setReplay] = useState<Replay | null>(null)
   const all = [sessions.p1, sessions.p2]
   const name = (id: string) => game.players.find((p) => p.userId === id)?.username ?? 'Someone'
 
@@ -40,6 +50,12 @@ export default function Board({ game, sessions, onGame, onLeave }: Props) {
   const actor = all.find((s) => s?.user.id === game.currentPlayerId) ?? null
   // Any player in the game may start a new one.
   const member = all.find((s) => s && game.players.some((p) => p.userId === s.user.id)) ?? null
+
+  // A different game starts with a clean history.
+  useEffect(() => {
+    setLog([])
+    setReplay(null)
+  }, [game.id])
 
   const resync = async () => {
     if (!member) return
@@ -50,12 +66,35 @@ export default function Board({ game, sessions, onGame, onLeave }: Props) {
     }
   }
 
+  // One event shows at once. Several (the bot answered) are shown one by one, then the new state.
+  const deliver = (events: GameEvent[], next: GameView) => {
+    if (events.length <= 1) {
+      setLog((l) => [...l, ...events])
+      onGame(next)
+      return
+    }
+    setLog((l) => [...l, events[0]])
+    setReplay({ rest: events.slice(1), game: next })
+  }
+
+  useEffect(() => {
+    if (!replay) return
+    if (replay.rest.length === 0) {
+      onGame(replay.game)
+      setReplay(null)
+      return
+    }
+    const t = setTimeout(() => {
+      setLog((l) => [...l, replay.rest[0]])
+      setReplay({ rest: replay.rest.slice(1), game: replay.game })
+    }, REPLAY_MS)
+    return () => clearTimeout(t)
+    // `onGame` is a stable state setter from the parent.
+  }, [replay])
+
   const act = useMutation({
     mutationFn: (kind: 'roll' | 'hold') => api[kind](actor!.token, game.id, game.version),
-    onSuccess: (res) => {
-      setEvents(res.events)
-      onGame(res.game)
-    },
+    onSuccess: (res) => deliver(res.events, res.game),
     onError: (e) => {
       if (e instanceof ApiError && e.status !== 0) void resync()
     },
@@ -63,10 +102,7 @@ export default function Board({ game, sessions, onGame, onLeave }: Props) {
 
   const restart = useMutation({
     mutationFn: () => api.newGame(member!.token, game.id, game.version),
-    onSuccess: (res) => {
-      setEvents([])
-      onGame(res.game)
-    },
+    onSuccess: (res) => onGame(res.game),
     onError: (e) => {
       if (e instanceof ApiError && e.status !== 0) void resync()
     },
@@ -74,19 +110,23 @@ export default function Board({ game, sessions, onGame, onLeave }: Props) {
 
   // After a 6&6 the server tells us how long actions stay locked; then we ask again.
   useEffect(() => {
-    if (game.lockRemainingMs <= 0) return
+    if (game.lockRemainingMs <= 0 || replay) return
     const t = setTimeout(() => void resync(), game.lockRemainingMs)
     return () => clearTimeout(t)
     // Re-arm only when the server sends a new lock; game.id and the tokens do not change meanwhile.
-  }, [game.lockRemainingMs, game.version])
+  }, [game.lockRemainingMs, game.version, replay])
 
-  const busy = act.isPending || restart.isPending
+  const busy = act.isPending || restart.isPending || replay !== null
   const can = (a: 'ROLL' | 'HOLD') => !!actor && !busy && game.allowedActions.includes(a)
-  const lastDice = [...events].reverse().find((e) => e.dice)?.dice
+  const last = log[log.length - 1]
+  const lastDice = [...log].reverse().find((e) => e.dice)?.dice
+  const bust = last?.type === 'BUST'
   const error = act.error ?? restart.error
-  const winner = game.winnerId ? name(game.winnerId) : null
+  const winner = game.winnerId && !replay ? name(game.winnerId) : null
   const waitingFor =
-    game.status === 'IN_PROGRESS' && !actor && game.currentPlayerId ? name(game.currentPlayerId) : null
+    game.status === 'IN_PROGRESS' && !actor && game.currentPlayerId && !replay
+      ? name(game.currentPlayerId)
+      : null
 
   return (
     <section className="board" aria-label="Game">
@@ -108,17 +148,21 @@ export default function Board({ game, sessions, onGame, onLeave }: Props) {
         })}
       </div>
 
-      <div className="dice" aria-hidden={!lastDice}>
+      <div className={`dice${bust ? ' bust' : ''}`} aria-hidden={!lastDice}>
         {lastDice?.map((d, i) => (
-          <span key={i} className="die">
+          <span key={`${log.length}-${i}`} className="die">
             {face(d)}
           </span>
         ))}
       </div>
 
-      <div className="messages" role="status" aria-live="polite">
-        {winner ? <strong>🏆 {winner} wins!</strong> : events.map((e, i) => <p key={i}>{describe(e, name)}</p>)}
-        {game.lockRemainingMs > 0 && <p>Hold on…</p>}
+      <div className={`messages${bust ? ' bust-message' : ''}`} role="status" aria-live="polite">
+        {winner ? (
+          <strong>🏆 {winner} wins!</strong>
+        ) : (
+          last && <p>{describe(last, name)}</p>
+        )}
+        {game.lockRemainingMs > 0 && !replay && <p>Hold on…</p>}
         {waitingFor && <p>Waiting for {waitingFor}…</p>}
       </div>
 
@@ -140,6 +184,20 @@ export default function Board({ game, sessions, onGame, onLeave }: Props) {
           Change settings
         </button>
       </div>
+
+      {log.length > 0 && (
+        <details className="history" open>
+          <summary>History</summary>
+          <ol aria-label="History">
+            {[...log]
+              .reverse()
+              .slice(0, HISTORY_SHOWN)
+              .map((e, i) => (
+                <li key={log.length - i}>{describe(e, name)}</li>
+              ))}
+          </ol>
+        </details>
+      )}
     </section>
   )
 }

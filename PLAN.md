@@ -236,6 +236,12 @@ Do not start the next phase until every Validation box in the current one is tic
 
 ---
 
+**Validation**
+- [x] X4: server tests show a roll during the lock → 423 and success after it; client test shows the message, the shake and disabled buttons.
+- [x] X3: strategy unit tests; 1000 bot-vs-random games, all moves legal, bot won 94% (the random opponent is weak); bot moves go through the same engine; bot turns tested over HTTP.
+- [x] X1: wins counted in the winning transaction; leaderboard endpoint and UI panel tested.
+- [x] X6: event-history panel tested (order, reset on new game).
+
 ### Phase 6 — End-to-end tests and hardening (≈2 h)
 **Steps**
 1. Write **one** Playwright smoke test (decided 2026-10-15 to save usage): log in both players → play to a low winning score (10) → the winner is shown and wins go up by 1. New-game and bot flows are covered by API tests instead.

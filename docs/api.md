@@ -39,6 +39,8 @@ Every error has the same shape: `{ "error": { "code": "...", "message": "..." } 
 
 `status` is `WAITING`, `IN_PROGRESS`, `FINISHED` or `ABANDONED`. `allowedActions` and `lockRemainingMs` are worked out by the server, so a client only has to show them. After a 6 & 6 the turn passes and actions are locked for 1500 ms.
 
+In a game against the bot, the bot plays its whole turn inside your roll/hold request, so `events` also contains the bot's moves in order and the `game` you get back is already waiting for you again (or finished). The bot's moves go through the same game rules as yours.
+
 `events` (roll/hold responses) lists what just happened: `{ type: ROLL | HOLD | BUST | WIN, userId, dice?, scoreDelta }`.
 
 ## Error codes
