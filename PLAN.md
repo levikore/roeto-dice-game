@@ -284,7 +284,6 @@ Workflow for each AI interaction:
 3. **Record the review:** what was accepted, what was changed, and what was rejected, with the reason (for example, "AI put the 6&6 check in the client, which breaks F4, so I moved it to the engine").
 4. **Record the validation:** the exact test or command that proved the output correct.
 5. Commit the log update in the **same commit** as the AI-assisted code. Put `AI: P-012` in the commit body so each commit links to its log entry.
-6. **Commit SHAs** (decided 2026-10-15): new entries say `Phase N commit`. One final docs commit before delivery fills in the real SHAs, using `git log --grep "P-0"`.
 
 Rules for prompts themselves
 - Give the AI the relevant requirement IDs and assumptions, so its output can be traced.

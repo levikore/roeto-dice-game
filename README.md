@@ -45,7 +45,7 @@ Win counts and leaderboard · data kept in SQLite · double-six pause (server-en
 ## Tests
 
 ```bash
-npm test                                   # 153 server + 41 client tests
+npm test                                   # 153 server + 49 client tests
 npm run test:coverage -w @dice/server      # engine: 100% branches
 npm run e2e                                # Playwright smoke test (uses installed Chrome)
 npm run lint && npm run typecheck
@@ -66,4 +66,4 @@ Logins are stateless tokens, so a stolen token works until it expires (24 h) and
 
 ## AI usage and process
 
-Built phase by phase with Claude Code; each phase ends with a checklist (see [PLAN.md](PLAN.md)) and one commit. **Every prompt is logged word for word** with the output summary, my review notes and the validation that proved it, in [docs/ai-prompts.md](docs/ai-prompts.md); commit messages carry `AI: P-###` references. Several defects were found by validation rather than by reading code, for example an unsafe example JWT secret, an unreadable "API down" message and a double-click error; these are recorded in the prompt log.
+Built phase by phase with Claude Code; each phase ends with a checklist (see [PLAN.md](PLAN.md)) and one commit. Several defects were found by validation rather than by reading code, for example an unsafe example JWT secret, an unreadable "API down" message and a double-click error.
