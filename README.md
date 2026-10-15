@@ -4,6 +4,11 @@ Two-player dice game. **All rules run in an authenticated backend API**; the Rea
 
 **Rules:** roll two dice as often as you like and add them to the round score. A double six loses the round score and passes the turn. Hold banks the round score and passes the turn. First to the winning score (default 100, you can change it) wins. You can start a new game at any time.
 
+## Demo
+<img width="959" height="809" alt="image" src="https://github.com/user-attachments/assets/b912e958-e438-4cf4-8618-02f308a813f0" />
+<img width="959" height="511" alt="image" src="https://github.com/user-attachments/assets/369b8a5a-cf59-4b27-b365-9701c985a953" />
+
+
 ## Quick start
 
 Needs Node 22.18+ (runs TypeScript and SQLite built in) and npm.
