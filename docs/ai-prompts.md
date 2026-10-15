@@ -138,4 +138,16 @@ Process rules: see [PLAN.md §3](../PLAN.md#3-ai-usage-and-prompt-documentation-
 - **Output summary:** Implemented `server/src/game/engine.ts`: `createGame` (winning score 10–1000, default 100) and pure `applyAction` (check order: game active → is a player → is their turn → not locked → ROLL/HOLD). 6&6 sets a 1500 ms lock. Winner keeps the turn marker; no further actions accepted. Input state is cloned, never mutated.
 - **Review:** _to fill in_
 - **Validation:** `npm test --workspace @dice/server` → 26 passed; lint and typecheck clean.
+- **Commit:** b32373a
+
+### P-010 — Phase 1 step 4 (property-based tests)
+- **Date:** 2026-10-15
+- **Tool / model / effort:** Claude Code desktop (Sonnet 5.5, low effort)
+- **Phase / step:** Phase 1, step 4
+- **Requirements:** R3–R6, B5
+- **Prompt (verbatim):**
+  > Yes, step 4. First commit the pending log SHA line with the message "docs: record engine commit sha" only after I approve; ask me about that at the end of step 4.
+- **Output summary:** Added dev dependency `fast-check` and `server/src/game/engine.property.test.ts`: 1000 random games (winning score 10–200, up to 200 random actions from alice/bob/an outsider). Invariants: scores never negative; round score is 0 whenever the turn changes; version +1 per accepted action; total of global scores equals total of HOLD deltas; at most one WIN; a finished game accepts nothing; the winner has reached the winning score and nobody else has.
+- **Review:** _to fill in. Self-found slip: first draft asserted on `r.value` inside the error branch (type error); changed to check the error code._
+- **Validation:** `npm test --workspace @dice/server` → 27 passed; lint and typecheck clean.
 - **Commit:** _not committed yet_
