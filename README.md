@@ -62,7 +62,7 @@ npm run play-game -w @dice/server -- 7 30  # prints one seeded game, move by mov
 
 ## Known limits
 
-Logins are stateless tokens, so a stolen token works until it expires (24 h) and there is no server-side logout. The API is plain HTTP for local use. Rate limiting covers login and register only. Move history is kept in the browser and resets on reload. The app does not poll, so two browsers do not update each other (the brief allows this).
+Logins are stateless tokens, so a stolen token works until it expires (24 h) and there is no server-side logout. The API is plain HTTP for local use. Rate limiting covers login and register only. After a page reload the current game reopens from the server, but the move history list starts empty. The game is remembered per browser tab. The app does not poll, so two browsers do not update each other (the brief allows this).
 
 ## AI usage and process
 

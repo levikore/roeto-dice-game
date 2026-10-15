@@ -718,3 +718,23 @@ Process rules: see [PLAN.md §3](../PLAN.md#3-ai-usage-and-prompt-documentation-
   - *Open / limits:* The `shared` package has a `test` script but no tests; harmless.
 - **Validation:** After the removals: lint, typecheck, 153 server and 41 client tests, client build, e2e smoke test (passes) and `npm audit` (0 vulnerabilities) all pass. `git status` shows only the intended changes; ignored files left are `.env` and `server/dev.db`.
 - **Commit:** find it with `git log --grep "P-041"`
+
+### P-042 — Reopen the current game after a page reload
+- **Date:** 2026-10-15
+- **Tool / model / effort:** Claude Code desktop (Sonnet 5.5, low effort)
+- **Phase / step:** After Phase 7 (fix of a gap found while validating an answer)
+- **Requirements:** F2, B7
+- **Prompt (verbatim):**
+  > Reload loses the game. A page reload drops the current game from the screen, and the game can't be reopened. The README doesn't say so. I can fix that and correct the README line.
+  >
+  > shouldn't this be fixed?
+- **Output summary:** Added `client/src/savedGame.ts` (remembers the id of the game on screen in sessionStorage, guarded with try/catch). `App.tsx` now, on load, asks the server for that game (`GET /api/games/:id`) with each signed-in player's token in turn, shows "Reopening your game…" instead of the lobby while it loads, and shows the board again. An abandoned game is not reopened; a missing game or one the players cannot open falls back to the lobby and the saved id is forgotten; if the server is down the id is kept and a message says so. Leaving a game (Change settings, log out, expired login) forgets it. README known limits corrected. No server change was needed.
+- **Review:**
+  - *Checked:* The gap was found by checking my own earlier answer against the code (`useState` held the game, only logins were saved). After the fix, read `App.tsx` again for races and found one design flaw before testing: clearing the saved id from an effect would also have cleared it when the server was down; replaced with explicit clearing where a player really leaves.
+  - *Decision:* ✅ Accepted.
+  - *Changed or found:* The owner asked for the fix; it also removes the README understatement ("move history resets" hid that the whole game vanished).
+  - *Alternatives not used:* Saving the whole game state in the browser (rejected: the server is the source of truth and a stale copy could be wrong); a "your games" list or join-by-id screen (rejected: more UI than the brief needs, and it would not make a second browser follow a game without also polling).
+  - *Open / limits:* The history list starts empty after a reload. The saved id is per browser tab. Two browsers still do not follow the same game.
+- **Validation:** 8 new App tests (49 client tests in total): game reopens with its scores and no flash of the lobby; Player 2's login is tried when Player 1 is not in the game; 404 falls back to the lobby and forgets the id; an abandoned game is not reopened; a finished game shows its winner; server down keeps the id and shows a message; nothing is requested when nobody is signed in; the id is saved on start and forgotten on Change settings and log out. Proved the tests fail when the restore line is disabled. In the real browser: started a game to 50, rolled twice (round 11), reloaded: same cards, same round score, Roll enabled; one more Roll worked (11 to 22, no error); Change settings cleared the saved id and showed the lobby. 153 server tests, 49 client tests, lint, typecheck, build and the e2e test pass; dev servers stopped.
+- **Commit:** find it with `git log --grep "P-042"`
+
