@@ -114,7 +114,7 @@ Process rules: see [PLAN.md §3](../PLAN.md#3-ai-usage-and-prompt-documentation-
 - **Output summary:** Committed 7479a83. Added `shared/src/game.ts` (GameState, Action, GameError codes, Result, DiceRoller, GameEvent) and exported it from `shared/src/index.ts`.
 - **Review:** _to fill in_
 - **Validation:** `npm run typecheck` and `npm run lint` (below).
-- **Commit:** _not committed yet_
+- **Commit:** 7266b51
 
 ### P-008 — Phase 1 step 2 (failing engine tests first)
 - **Date:** 2026-10-15
@@ -126,4 +126,16 @@ Process rules: see [PLAN.md §3](../PLAN.md#3-ai-usage-and-prompt-documentation-
 - **Output summary:** Added `server/src/game/engine.test.ts` (26 tests: createGame/R7, ROLL/R3, 6&6 + action lock/R4+X4, HOLD/R5+A2, winning/R6+A1, validation/B5) and a stub `engine.ts` whose functions throw "not implemented". API decided: `createGame(id, [A,B], winningScore?)` and `applyAction(state, action, actorId, dice, now?)`, both returning `Result`.
 - **Review:** _to fill in_
 - **Validation:** `npm test --workspace @dice/server` → 26 failed / 26 (expected: tests are red before implementation).
+- **Commit:** 7266b51
+
+### P-009 — Phase 1 step 3 (implement engine)
+- **Date:** 2026-10-15
+- **Tool / model / effort:** Claude Code desktop (Sonnet 5.5, low effort)
+- **Phase / step:** Phase 1, step 3
+- **Requirements:** R1–R7, B3, B5, X4
+- **Prompt (verbatim):**
+  > Yes, step 3
+- **Output summary:** Implemented `server/src/game/engine.ts`: `createGame` (winning score 10–1000, default 100) and pure `applyAction` (check order: game active → is a player → is their turn → not locked → ROLL/HOLD). 6&6 sets a 1500 ms lock. Winner keeps the turn marker; no further actions accepted. Input state is cloned, never mutated.
+- **Review:** _to fill in_
+- **Validation:** `npm test --workspace @dice/server` → 26 passed; lint and typecheck clean.
 - **Commit:** _not committed yet_
