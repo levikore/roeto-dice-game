@@ -52,7 +52,7 @@ Process rules: see [PLAN.md §3](../PLAN.md#3-ai-usage-and-prompt-documentation-
 - **Output summary:** Confirmed the folder exists. Created `roeto-dice-game/` inside it with `git init -b main` and a `.gitignore`, and moved PLAN.md and this log there. Added PLAN.md §3a (commit approval policy) and §3b (AI cost policy: model tiers, effort levels, token-saving habits). Added model/effort to the log template.
 - **Review:** _to fill in_
 - **Validation:** `git status` shows the repo on `main` with no commits yet; PLAN.md §3a/§3b exist.
-- **Commit:** _not committed yet (waiting for approval)_
+- **Commit:** b2e0935
 
 ### P-003 — Start Phase 0 (substep-by-substep, Sonnet)
 - **Date:** 2026-10-15
@@ -65,7 +65,7 @@ Process rules: see [PLAN.md §3](../PLAN.md#3-ai-usage-and-prompt-documentation-
 - **Output summary:** Created the npm workspaces skeleton (`shared`, `server`, `client`), `tsconfig.base.json`, ESLint flat config, Prettier config; client generated with `npm create vite` (react-ts); dev tools installed (eslint, typescript-eslint, prettier, vitest, typescript).
 - **Review:** _to fill in_
 - **Validation:** `npm run lint`, `npm run typecheck` and `npm test` all pass (no tests yet; `--passWithNoTests`).
-- **Commit:** _not committed yet_
+- **Commit:** b2e0935
 
 ### P-004 — Phase 0 substep 0.3 (docs skeleton)
 - **Date:** 2026-10-15
@@ -77,7 +77,7 @@ Process rules: see [PLAN.md §3](../PLAN.md#3-ai-usage-and-prompt-documentation-
 - **Output summary:** Added `README.md` skeleton and `docs/decisions/0001-architecture.md`.
 - **Review:** _to fill in_
 - **Validation:** Files exist; ADR content matches PLAN.md §1.
-- **Commit:** _not committed yet_
+- **Commit:** b2e0935
 
 ### P-005 — Phase 0 substep 0.4 (CI workflow)
 - **Date:** 2026-10-15
@@ -89,7 +89,7 @@ Process rules: see [PLAN.md §3](../PLAN.md#3-ai-usage-and-prompt-documentation-
 - **Output summary:** Added `.github/workflows/ci.yml` running `npm ci`, lint, typecheck and test on every push and PR (Node 22).
 - **Review:** _to fill in_
 - **Validation:** Same three commands pass locally; the workflow itself can only be checked once the repo is pushed to GitHub (no remote yet).
-- **Commit:** _not committed yet_
+- **Commit:** b2e0935
 
 ### P-006 — Phase 0 substep 0.5 (.env.example)
 - **Date:** 2026-10-15
@@ -101,4 +101,29 @@ Process rules: see [PLAN.md §3](../PLAN.md#3-ai-usage-and-prompt-documentation-
 - **Output summary:** Added `.env.example` with `PORT`, `DATABASE_URL`, `JWT_SECRET` (placeholder) and `CLIENT_ORIGIN`. `.env` is already in `.gitignore`.
 - **Review:** _to fill in_
 - **Validation:** `git check-ignore .env` confirms `.env` is ignored; no real secret in the file.
+- **Commit:** b2e0935
+
+### P-007 — Commit log SHA; Phase 1 step 1 (shared types)
+- **Date:** 2026-10-15
+- **Tool / model / effort:** Claude Code desktop (Sonnet 5.5, low effort)
+- **Phase / step:** Phase 1, step 1
+- **Requirements:** R1–R8, B3, B5 (types only)
+- **Prompt (verbatim):**
+  > Commit the log update with the message "docs: record phase 0 commit sha", then ask me before starting Phase 1 substep 1.
+  > (follow-up answer) Yes, go ahead
+- **Output summary:** Committed 7479a83. Added `shared/src/game.ts` (GameState, Action, GameError codes, Result, DiceRoller, GameEvent) and exported it from `shared/src/index.ts`.
+- **Review:** _to fill in_
+- **Validation:** `npm run typecheck` and `npm run lint` (below).
+- **Commit:** _not committed yet_
+
+### P-008 — Phase 1 step 2 (failing engine tests first)
+- **Date:** 2026-10-15
+- **Tool / model / effort:** Claude Code desktop (Sonnet 5.5, low effort)
+- **Phase / step:** Phase 1, step 2
+- **Requirements:** R1–R7, B5, A1, A2, X4
+- **Prompt (verbatim):**
+  > Yes, step 2
+- **Output summary:** Added `server/src/game/engine.test.ts` (26 tests: createGame/R7, ROLL/R3, 6&6 + action lock/R4+X4, HOLD/R5+A2, winning/R6+A1, validation/B5) and a stub `engine.ts` whose functions throw "not implemented". API decided: `createGame(id, [A,B], winningScore?)` and `applyAction(state, action, actorId, dice, now?)`, both returning `Result`.
+- **Review:** _to fill in_
+- **Validation:** `npm test --workspace @dice/server` → 26 failed / 26 (expected: tests are red before implementation).
 - **Commit:** _not committed yet_
