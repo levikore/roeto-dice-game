@@ -176,3 +176,82 @@ Process rules: see [PLAN.md §3](../PLAN.md#3-ai-usage-and-prompt-documentation-
 - **Review:** _to fill in_
 - **Validation:** Coverage: 100% statements/branches/functions/lines (29/29 branches). Negative test: temporarily adding `import fs from 'node:fs'` to the engine made ESLint fail; reverted (no diff on engine.ts). Property test ran 1000 games; seed-7 game log read by hand (P-011). Lint, typecheck and all 27 tests pass.
 - **Commit:** _not committed yet_
+
+### P-013 — Commit Phase 1, commit per phase, re-validate plan, open decisions
+- **Date:** 2026-10-15
+- **Tool / model / effort:** Claude Code desktop (Sonnet 5.5 low for the commit; then the session ran on Opus 5.5 medium for the plan review)
+- **Phase / step:** Between Phase 1 and Phase 2 (plan review)
+- **Requirements:** X1–X6, B7 (scope decisions)
+- **Prompt (verbatim):**
+  > commit, from now on commit every phase not every step, validate your plan again.
+  > lets decide questions your unsure about
+- **Follow-up answers (verbatim, from the question cards):**
+  > Database: "For the sake of the exercise, simulate the different users on the same page. No need for live updates between different browsers/machine — validate you choice" → then "Yes, node:sqlite"
+  > Extras: "Win tracking + persistence, 6&6 lock + message, AI opponent (bot)"
+  > SHA logging: "explain this" → then "(a) Fill SHAs at the end"
+  > Delivery: "Local repo + README only"
+  > E2E: "One smoke test"; Bot turn: "Inside the same request"
+- **Output summary:** Committed Phase 1 remainder as 34fde56. Updated PLAN.md: commit once per phase; DB is built-in `node:sqlite` with a schema.sql file instead of Prisma; extras X1–X4 plus the event-history panel (no sound, no deploy); one Playwright smoke test; the bot turn runs in the same request; game start flow (WAITING exists only in the service; engine starts on join); Phase 0/1 checklists ticked; CI check deferred until you push.
+- **Review:** _to fill in_
+- **Validation:** `node:sqlite` checked on Node 26.11.1: a stale `UPDATE … WHERE version = ?` changes 0 rows. grep shows no remaining Prisma / sound / multi-test Playwright references in PLAN.md.
+- **Commit:** Phase 2 commit
+
+### P-014 — Phase 2 step 1 (SQL schema and database opener)
+- **Date:** 2026-10-15
+- **Tool / model / effort:** Claude Code desktop (Sonnet 5.5, low effort; user switched via `/model`)
+- **Phase / step:** Phase 2, step 1
+- **Requirements:** B2, B4, X1, X2
+- **Prompt (verbatim):**
+  > Yes, start Phase 2 step 1.
+- **Output summary:** Added `server/src/db/schema.sql` (users, games, game_players, game_events with CHECK constraints, foreign keys, case-insensitive unique usernames), `server/src/db/db.ts` (`openDb(path)` applies the schema, foreign keys on, WAL), and `db.test.ts` (5 tests).
+- **Review:** _to fill in_
+- **Validation:** 32 tests pass (27 engine + 5 db): schema idempotent, duplicate username (case-insensitive) rejected, bad status rejected, foreign key enforced, stale versioned update changes 0 rows. Lint clean.
+- **Commit:** Phase 2 commit
+
+### P-015 — Phase 2 step 2 (register and login)
+- **Date:** 2026-10-15
+- **Tool / model / effort:** Claude Code desktop (Sonnet 5.5, low effort)
+- **Phase / step:** Phase 2, step 2
+- **Requirements:** B1, B2
+- **Prompt (verbatim):**
+  > Yes, step 2
+- **Output summary:** Added dependencies express 5, zod, bcryptjs, jsonwebtoken (+ supertest and types for dev). New files: `server/src/app.ts` (`createApp`), `http/auth.ts` (register/login, zod validation, bcrypt cost 10, JWT 24 h), `http/errors.ts` (`ApiError` + central handler returning `{error:{code,message}}`), `http/auth.test.ts` (13 tests). Deviation from plan: **bcryptjs** (pure JavaScript) instead of native bcrypt, to avoid a native build step on new Node versions.
+- **Review:** _to fill in. Self-found slip: first draft used an invalid dummy hash for unknown users, so the "same work" claim was false (bcrypt returns instantly on a malformed hash); replaced with a real hash computed at startup._
+- **Validation:** 45 tests pass: duplicate username (case-insensitive) → 409; weak/empty/invalid input → 400; malformed JSON → 400; stored value is a bcrypt hash and not the password; wrong password and unknown user return identical 401 bodies. Lint and typecheck clean.
+- **Commit:** Phase 2 commit
+
+### P-016 — Phase 2 step 3 (requireAuth middleware and /auth/me)
+- **Date:** 2026-10-15
+- **Tool / model / effort:** Claude Code desktop (Sonnet 5.5, low effort)
+- **Phase / step:** Phase 2, step 3
+- **Requirements:** B1, B6
+- **Prompt (verbatim):**
+  > Yes, step 3
+- **Output summary:** Added `server/src/http/requireAuth.ts` (reads Bearer token, verifies HS256 signature and expiry, loads the user from the database, sets `req.user`; every failure is 401 `UNAUTHENTICATED`) and `GET /api/auth/me`. Added `requireAuth.test.ts` (11 tests).
+- **Review:** _to fill in_
+- **Validation:** 56 tests pass. Rejected: missing token, malformed headers, expired token, wrong secret, `alg: none` token, valid token for a deleted user. Lint and typecheck clean.
+- **Commit:** Phase 2 commit
+
+### P-017 — Phase 2 step 4 (seed script)
+- **Date:** 2026-10-15
+- **Tool / model / effort:** Claude Code desktop (Sonnet 5.5, low effort)
+- **Phase / step:** Phase 2, step 4
+- **Requirements:** B2, X3 (bot user)
+- **Prompt (verbatim):**
+  > Yes, step 4
+- **Output summary:** Added `server/src/db/seed.ts` (`seed(db, demoPassword)`: alice, bob and the bot; idempotent; bot gets a random thrown-away password), `scripts/seed.ts`, `seed.test.ts` (3 tests), scripts `npm run seed` / `npm run db:reset` for the server workspace. `.env.example` now uses `DATABASE_PATH` (no Prisma URL) and adds `DEMO_PASSWORD`. `.gitignore` also ignores SQLite `-wal`/`-shm` files.
+- **Review:** _to fill in_
+- **Validation:** 59 tests pass. By hand: with `.env` copied from `.env.example`, `db:reset` then `seed` printed "alice, bob, bot", and a second `seed` run also succeeded (idempotent); the temporary `.env` and `dev.db` were removed afterwards. Lint and typecheck clean.
+- **Commit:** Phase 2 commit
+
+### P-018 — Phase 2 step 5 (hardening and server entry)
+- **Date:** 2026-10-15
+- **Tool / model / effort:** Claude Code desktop (Sonnet 5.5, low effort)
+- **Phase / step:** Phase 2, step 5 (plan item 6)
+- **Requirements:** B1, B6
+- **Prompt (verbatim):**
+  > Yes, step 5
+- **Output summary:** Added `helmet`, `cors` (single allowed origin), `express-rate-limit` (login/register only, configurable) and a 10 kb body limit to `createApp`; added `server/src/index.ts` (starts the API from env) and `npm run start`. Added `hardening.test.ts` (5 tests). Error handler now maps oversized bodies to 413 `PAYLOAD_TOO_LARGE`.
+- **Review:** _to fill in. Two issues found while validating, both fixed: (1) an oversized body returned 500 instead of 413 (real bug, caught by a test); (2) a live server run showed Node's built-in TypeScript mode rejects constructor parameter properties in `ApiError`, which Vitest had accepted. Rewrote the class and added `erasableSyntaxOnly` to `tsconfig.base.json` so typecheck catches this from now on. My first CORS test was also wrong (the header names the allowed origin; the browser does the blocking) and was corrected._
+- **Validation:** 64 tests pass; lint and typecheck clean. Live check: started the real server with a temporary `.env`, seeded the DB, `POST /api/auth/login` as alice returned a token and `GET /api/auth/me` without a token returned 401. The temporary `.env` and `dev.db` were removed.
+- **Commit:** Phase 2 commit

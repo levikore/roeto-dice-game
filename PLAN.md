@@ -48,8 +48,8 @@ Each requirement gets an ID. Every test, commit and prompt-log entry refers back
 | X2 | Persist data | Yes — SQLite database |
 | X4 | Lock actions briefly and show a message on 6 & 6 | Yes — enforced by the server, animated in the UI |
 | X3 | AI opponent | Yes, if time allows — the bot runs on the server |
-| X5 | Sound effects | Small and toggleable, if time allows |
-| X6 | Creative additions | Roll history log, dice animation, leaderboard |
+| X5 | Sound effects | **Not built** (decided 2026-10-15 to save usage) |
+| X6 | Creative additions | Event-history panel only (it reuses the existing event log) |
 
 ### Unclear rules: my reading (written down so reviewers can see the reasoning)
 | # | Question | Decision |
@@ -71,13 +71,13 @@ Each requirement gets an ID. Every test, commit and prompt-log entry refers back
 |-------|--------|-----|
 | Language | TypeScript everywhere | Types are shared between API and client; catches errors at compile time |
 | Repo | npm workspaces monorepo: `server/`, `client/`, `shared/` | One clone, one install, shared API types |
-| Backend | Node 22 + Express 5 | Common and easy for reviewers to read |
+| Backend | Node 22.13+ (developed on 26) + Express 5 | Common and easy for reviewers to read |
 | Validation | Zod | One schema serves as both runtime validation and the TS type |
 | Auth | Username + password, bcrypt hashing, JWT access token (Bearer) | Stateless, simple, and fits "multiple users on one page" |
-| DB | SQLite via Prisma | Nothing to install; migrations are tracked; covers X2 |
+| DB | SQLite via Node's built-in `node:sqlite` | No dependency and no code generation step. The brief needs only one machine with users simulated on one page (B7), so an embedded file database is enough. Covers X2. Checked on Node 26: a conditional `UPDATE … WHERE version = ?` changes 0 rows on a stale write, so the version check works. |
 | Randomness | `crypto.randomInt` behind an injectable `DiceRoller` interface | Fair dice in production, fixed dice in tests |
 | Frontend | React 19 + Vite + TanStack Query | Server state managed cleanly, no client-side game logic |
-| Tests | Vitest (unit), Supertest (API), React Testing Library (UI), Playwright (E2E) | Covers every layer |
+| Tests | Vitest (unit), Supertest (API), React Testing Library (UI), Playwright (one E2E smoke test) | Covers every layer |
 | Quality | ESLint, Prettier, `tsc --noEmit`, GitHub Actions CI | Every commit is checked automatically |
 
 ### Main design rule: a pure game engine
@@ -99,6 +99,7 @@ GamePlayer { gameId, userId, seat (0|1), globalScore }
 GameEvent  { id, gameId, userId, type: ROLL|HOLD|BUST|WIN|ABANDON, dice?, scoreDelta, createdAt }
 ```
 - `version` → optimistic concurrency. The client sends `expectedVersion`; a stale request gets `409`. This stops a double-click from rolling twice.
+- **Game start flow:** `POST /games` saves the game as `WAITING` with only the creator. `POST /games/:id/join` with the second player's token calls `createGame` in the engine and the game becomes `IN_PROGRESS`. So the engine never sees `WAITING`; that state exists only in the service layer. A bot game skips the join step.
 - `GameEvent` → an audit log. It drives the history panel and makes any game replayable for debugging.
 
 ### API (REST, all JSON)
@@ -131,13 +132,13 @@ Do not start the next phase until every Validation box in the current one is tic
 1. ✅ Local git repo created at `~/git_wa/job_interviews/roeto-dice-game` (branch `main`). Every commit needs the owner's approval (see §3a).
 2. Set up the npm workspaces skeleton (`server`, `client`, `shared`) with TS, ESLint and Prettier.
 3. Add `docs/ai-prompts.md` (the prompt log), `docs/decisions/` (ADRs) and a `README.md` skeleton.
-4. Add a GitHub Actions workflow that runs `lint`, `typecheck` and `test` on every push and PR.
+4. ✅ Add a GitHub Actions workflow that runs `lint`, `typecheck` and `test` on every push and PR.
 5. Add the `.env.example` file (`JWT_SECRET`, `DATABASE_URL`, `PORT`).
 
 **Validation**
-- [ ] `npm install && npm run lint && npm run typecheck && npm test` passes on a clean clone.
-- [ ] The CI run is green on the first PR.
-- [ ] Prompt log entry #1 (the planning prompt) is in place.
+- [x] `npm install && npm run lint && npm run typecheck && npm test` passes on a clean clone (checked with `npm ci`).
+- [ ] The CI run is green. _Deferred: the repo stays local, so CI runs only once you push it._
+- [x] Prompt log entry #1 (the planning prompt) is in place.
 
 ---
 
@@ -161,16 +162,16 @@ Do not start the next phase until every Validation box in the current one is tic
 5. Write a small "seeded game" script that plays a full random game and prints the event log, for a manual check.
 
 **Validation**
-- [ ] 100% branch coverage on `engine.ts` (`vitest --coverage`).
-- [ ] The property tests run 1,000+ random sequences with no failures.
-- [ ] Manually read one printed game log and confirm it matches the rules.
-- [ ] The engine has no imports from Express, Prisma or `fs` (checked with an ESLint `no-restricted-imports` rule).
+- [x] 100% branch coverage on `engine.ts` (`npm run test:coverage --workspace @dice/server`).
+- [x] The property tests run 1,000+ random sequences with no failures.
+- [x] Manually read one printed game log and confirm it matches the rules (seed 7, P-011).
+- [x] The engine has no imports from Express, the database or `fs` (ESLint `no-restricted-imports` rule; checked that it fires).
 
 ---
 
 ### Phase 2 — Persistence and auth (≈3 h) → B1, B2, B6, X1, X2
 **Steps**
-1. Write the Prisma schema from the domain model and run the first migration.
+1. Write `server/src/db/schema.sql` from the domain model. It is applied on startup with `CREATE TABLE IF NOT EXISTS`, so no migration tool is needed.
 2. Build `POST /auth/register` and `/auth/login`. Passwords are hashed with bcrypt (cost 10). JWTs expire after 24 h and the secret comes from env.
 3. Add `requireAuth` middleware that reads the Bearer token, checks the signature and expiry, and loads the user.
 4. Write a seed script that creates demo users (`alice` / `bob`, demo passwords stored only in `.env.example` and the README) and the `bot` user.
@@ -178,11 +179,11 @@ Do not start the next phase until every Validation box in the current one is tic
 6. Add basic hardening: `helmet`, CORS limited to the client origin, and rate limiting on the auth routes.
 
 **Validation (Supertest)**
-- [ ] Registering a duplicate username → 409. A weak or empty password → 400.
-- [ ] Login with a wrong password → 401, with an error message that doesn't say which field was wrong.
-- [ ] A protected route with no token, a bad token or an expired token → 401.
-- [ ] The DB holds a bcrypt hash, never the plain-text password (asserted in a test).
-- [ ] `npm run db:reset && npm run seed` works on a fresh clone.
+- [x] Registering a duplicate username → 409. A weak or empty password → 400.
+- [x] Login with a wrong password → 401, with an error message that doesn't say which field was wrong.
+- [x] A protected route with no token, a bad token or an expired token → 401.
+- [x] The DB holds a bcrypt hash, never the plain-text password (asserted in a test).
+- [x] `npm run db:reset && npm run seed` works on a fresh clone.
 
 ---
 
@@ -225,20 +226,19 @@ Do not start the next phase until every Validation box in the current one is tic
 
 ---
 
-### Phase 5 — Extras (≈3–4 h) → X1–X6
+### Phase 5 — Extras (≈3 h) → X1–X4, X6
 1. **X4, the 6&6 lock (server-enforced):** on a bust, set `lockedUntil = now + 1500ms`. Actions during the lock → 423 `ACTIONS_LOCKED`. The UI shows a "💥 Double six! Round score lost" animation and disables the buttons until `lockedUntil`.
    *Validation:* an integration test checks that a roll during the lock → 423 and succeeds after the lock (using fake timers or an injected clock).
-2. **X3, AI opponent (server-side):** a `bot` user with a strategy function. Hold if `roundScore ≥ 20`, or if holding would win, or if the opponent is close to winning and the bot is behind. When the turn passes to the bot, the server plays the bot's turn and returns its events. The UI replays them with a short delay so the turn is easy to follow.
+2. **X3, AI opponent (server-side):** a `bot` user with a strategy function. Hold if `roundScore ≥ 20`, or if holding would win, or if the opponent is close to winning and the bot is behind. When the turn passes to the bot, the server plays the whole bot turn **inside the same request** (decided 2026-10-15) and returns all its events. The UI replays them with a short delay so the turn is easy to follow.
    *Validation:* unit-test the strategy; simulate 1,000 bot-vs-random games and confirm the bot wins more than 50%; confirm the bot only acts through the same engine (no shortcuts).
 3. **X1 leaderboard:** a `GET /leaderboard` endpoint and a small panel in the UI.
-4. **X5 sound:** roll, bust and win sounds with a mute toggle that is saved in localStorage. This is a UI preference only, not game logic.
-5. **X6:** a dice roll animation and the event-history panel.
+4. **X6:** the event-history panel.
 
 ---
 
 ### Phase 6 — End-to-end tests and hardening (≈2 h)
 **Steps**
-1. Write Playwright E2E tests: (a) log in both players → play to a low winning score (10) → the winner is shown and wins go up by 1; (b) start a new game mid-game; (c) the bot game finishes.
+1. Write **one** Playwright smoke test (decided 2026-10-15 to save usage): log in both players → play to a low winning score (10) → the winner is shown and wins go up by 1. New-game and bot flows are covered by API tests instead.
    The tests use a `DICE_SEED` / test-mode env so the dice are predictable.
 2. Run a security pass: check JWT secret handling, input validation on every route, no secrets in git (`gitleaks`), and `npm audit`.
 3. Do an error UX pass: kill the server mid-game and confirm the UI shows a clear error.
@@ -262,9 +262,9 @@ Do not start the next phase until every Validation box in the current one is tic
 
 **Validation**
 - [ ] A fresh clone in a new directory following only the README → the game runs in under 5 minutes.
-- [ ] CI is green on `main`, and the git history is clean (conventional commits, one PR per phase).
+- [ ] CI is green on `main`, and the git history is clean (conventional commits, one commit per phase).
 - [ ] Final review against the checklist in §4.
-- [ ] Submit as a GitHub repo link, plus a deployed demo if possible (Render/Fly for the API, Vercel/Netlify for the client).
+- [ ] Deliver the local repo plus README. You push it to GitHub yourself; there is no deployed demo (decided 2026-10-15).
 
 ---
 
@@ -278,6 +278,7 @@ Workflow for each AI interaction:
 3. **Record the review:** what was accepted, what was changed, and what was rejected, with the reason (for example, "AI put the 6&6 check in the client, which breaks F4, so I moved it to the engine").
 4. **Record the validation:** the exact test or command that proved the output correct.
 5. Commit the log update in the **same commit** as the AI-assisted code. Put `AI: P-012` in the commit body so each commit links to its log entry.
+6. **Commit SHAs** (decided 2026-10-15): new entries say `Phase N commit`. One final docs commit before delivery fills in the real SHAs, using `git log --grep "P-0"`.
 
 Rules for prompts themselves
 - Give the AI the relevant requirement IDs and assumptions, so its output can be traced.
@@ -288,6 +289,7 @@ Rules for prompts themselves
 ### 3a. Git and commit policy
 - The local repo is at `~/git_wa/job_interviews/roeto-dice-game`, branch `main`. There is no remote until submission.
 - **No commit happens without the owner's explicit approval.** The AI proposes the message and the list of files, waits for a "yes", and only then commits. One approval covers one commit only.
+- **One commit per phase** (decided 2026-10-15), not per step. Each phase ends with its validation checklist, then one commit request.
 - Commits follow conventional-commit style (`feat:`, `test:`, `docs:` …). AI-assisted commits include `AI: P-###` in the body.
 
 ### 3b. AI cost policy (keep usage as low as possible)
@@ -296,7 +298,7 @@ Rules for prompts themselves
 | Tier | Model / effort | Used for |
 |------|----------------|----------|
 | Cheap | Haiku, low effort | Config files, scaffolding with generators, renaming, formatting, filling in docs/prompt-log entries, running tests and summarising results |
-| Default | Sonnet, low–medium effort | Most implementation work: API routes, Prisma schema, React components, writing tests from a clear spec |
+| Default | Sonnet, low–medium effort | Most implementation work: API routes, SQL schema, React components, writing tests from a clear spec |
 | Expensive (rare) | Opus, medium effort | Only for: game engine design review, hard bugs that a cheaper model failed on twice, final code review before submission |
 
 **Habits that cut token use:**
@@ -323,7 +325,7 @@ Rules for prompts themselves
 | B7 | Two-panel login on one page; token routing |
 | F1–F3 | RTL tests + E2E |
 | F4 | No-logic audit (lint rule + review) |
-| X1–X5 | Extra-specific tests listed in Phase 5 |
+| X1–X4, X6 | Extra-specific tests listed in Phase 5 |
 | Docs | README fresh-clone test; prompt log complete (every AI commit links to a `P-###`) |
 
 ## 5. Schedule (≈20 h total)
