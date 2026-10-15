@@ -1,1 +1,16 @@
-{"name":"@dice/server","version":"0.0.0","private":true,"type":"module","scripts":{"typecheck":"tsc -p .","test":"vitest run --passWithNoTests --reporter=dot"},"devDependencies":{"fast-check":"^4.10.2"}}
+{
+  "name": "@dice/server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc -p .",
+    "test": "vitest run --passWithNoTests --reporter=dot",
+    "play-game": "node src/scripts/play-game.ts",
+    "test:coverage": "vitest run --coverage --coverage.include=src/game/engine.ts --coverage.thresholds.branches=100 --coverage.thresholds.lines=100 --reporter=dot"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^5.0.4",
+    "fast-check": "^4.10.2"
+  }
+}

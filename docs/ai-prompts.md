@@ -150,4 +150,29 @@ Process rules: see [PLAN.md §3](../PLAN.md#3-ai-usage-and-prompt-documentation-
 - **Output summary:** Added dev dependency `fast-check` and `server/src/game/engine.property.test.ts`: 1000 random games (winning score 10–200, up to 200 random actions from alice/bob/an outsider). Invariants: scores never negative; round score is 0 whenever the turn changes; version +1 per accepted action; total of global scores equals total of HOLD deltas; at most one WIN; a finished game accepts nothing; the winner has reached the winning score and nobody else has.
 - **Review:** _to fill in. Self-found slip: first draft asserted on `r.value` inside the error branch (type error); changed to check the error code._
 - **Validation:** `npm test --workspace @dice/server` → 27 passed; lint and typecheck clean.
+- **Commit:** 77c5a27
+
+### P-011 — Phase 1 step 5 (seeded game script)
+- **Date:** 2026-10-15
+- **Tool / model / effort:** Claude Code desktop (Sonnet 5.5, low effort)
+- **Phase / step:** Phase 1, step 5
+- **Requirements:** R1–R6 (manual check)
+- **Prompt (verbatim):**
+  > Yes, step 5
+- **Output summary:** Added `server/src/scripts/play-game.ts` (seeded mulberry32 dice, simple "hold at 15" player, prints every event) and the script `npm run play-game --workspace @dice/server -- [seed] [winningScore]`. No new dependencies: Node runs the TypeScript file directly; `allowImportingTsExtensions` added to `tsconfig.base.json`.
+- **Review:** _to fill in: read the printed log and confirm it matches the rules._
+- **Validation:** Ran with seed 7, winning score 30. Log read by hand: round scores add up, HOLD banks the round score and passes the turn, alice wins on the hold that reaches 40 ≥ 30, no actions after WIN. Lint and typecheck clean.
+- **Commit:** _not committed yet_
+
+### P-012 — Phase 1 validation gate
+- **Date:** 2026-10-15
+- **Tool / model / effort:** Claude Code desktop (Sonnet 5.5, low effort)
+- **Phase / step:** Phase 1, validation checklist
+- **Requirements:** B3 (rules in one pure place)
+- **Prompt (verbatim):**
+  > Not yet
+  > continue
+- **Output summary:** Added dev dependency `@vitest/coverage-v8` and script `test:coverage` (fails below 100% lines/branches on `engine.ts`). Added an ESLint `no-restricted-imports` rule for `server/src/game/engine.ts` blocking express, prisma, fs, node:* and http(s).
+- **Review:** _to fill in_
+- **Validation:** Coverage: 100% statements/branches/functions/lines (29/29 branches). Negative test: temporarily adding `import fs from 'node:fs'` to the engine made ESLint fail; reverted (no diff on engine.ts). Property test ran 1000 games; seed-7 game log read by hand (P-011). Lint, typecheck and all 27 tests pass.
 - **Commit:** _not committed yet_
