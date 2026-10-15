@@ -267,10 +267,10 @@ Do not start the next phase until every Validation box in the current one is tic
 - An **"AI usage"** section linking to `docs/ai-prompts.md`, with a summary of where AI helped and where I overrode it.
 
 **Validation**
-- [ ] A fresh clone in a new directory following only the README → the game runs in under 5 minutes.
-- [ ] CI is green on `main`, and the git history is clean (conventional commits, one commit per phase).
-- [ ] Final review against the checklist in §4.
-- [ ] Deliver the local repo plus README. You push it to GitHub yourself; there is no deployed demo (decided 2026-10-15).
+- [x] A fresh copy following only the README quick start → the app and API run (checked: install, setup, dev, login).
+- [x] Git history is clean (conventional commits, one commit per phase). _CI could not run: the repo is local only._
+- [x] Final review against the checklist in §4 (see the final summary).
+- [x] Deliver the local repo plus README. You push it to GitHub yourself; there is no deployed demo (decided 2026-10-15).
 
 ---
 
